@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	baseURL string = "https://vipnovel.com/vipnovel/"
+	vipURL string = "https://vipnovel.com/vipnovel"
 )
 
 // VipNovelScraper scrapper use to scrap https://vipnovel.com/ website
@@ -46,7 +46,7 @@ func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (Novel
 }
 
 // ScrapeNovel get each chater of a specific novel
-func (scraper *VipNovelScraper) ScrapeNovel(c *colly.Collector, novelName string) []NovelData {
+func (scraper *VipNovelScraper) ScrapeNovel(c *colly.Collector, novelName string) {
 	novels := []NovelData{}
 
 	for novelName != "" {
@@ -55,6 +55,4 @@ func (scraper *VipNovelScraper) ScrapeNovel(c *colly.Collector, novelName string
 		novels = append(novels, novel)
 		novelName = nextPageURL
 	}
-
-	return novels
 }
