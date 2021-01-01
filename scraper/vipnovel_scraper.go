@@ -3,6 +3,7 @@ package scraper
 import (
 	"fmt"
 
+	"github.com/MrColorado/epubScraper/utils"
 	"github.com/gocolly/colly"
 )
 
@@ -18,8 +19,8 @@ func (scraper *VipNovelScraper) getNextPageURL(c *colly.Collector, nextPageURL *
 }
 
 // ScrapPage get the content of specific novel chapter
-func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (NovelData, string) {
-	novelData := NovelData{}
+func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (utils.NovelChapterData, string) {
+	novelData := utils.NovelChapterData{}
 	nextPageURL := ""
 
 	c.OnRequest(func(r *colly.Request) {
@@ -47,7 +48,7 @@ func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (Novel
 
 // ScrapeNovel get each chater of a specific novel
 func (scraper *VipNovelScraper) ScrapeNovel(c *colly.Collector, novelName string) {
-	novels := []NovelData{}
+	novels := []utils.NovelChapterData{}
 
 	for novelName != "" {
 		fmt.Println(novelName)

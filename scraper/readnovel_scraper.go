@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MrColorado/epubScraper/utils"
+
 	"github.com/gocolly/colly"
 )
 
@@ -34,8 +36,8 @@ func (scraper *ReadNovelScraper) ScrapeNovel(c *colly.Collector, novelName strin
 	scraper.ScrapPartialNovel(c, novelName, 1, endChapter)
 }
 
-func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (NovelData, bool) {
-	novelData := NovelData{}
+func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (utils.NovelChapterData, bool) {
+	novelData := utils.NovelChapterData{}
 	isNextPage := true
 
 	c.OnHTML("#next_chap", func(e *colly.HTMLElement) {
@@ -62,9 +64,9 @@ func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (Nove
 // ScrapPartialNovel get specified chapter of a novel
 func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName string, startChapter int, endChapter int) {
 	for ; startChapter <= endChapter; startChapter++ {
-		novel, isNextPage := scraper.scrapPage(c, fmt.Sprintf("%s/%s/chapter-%d.html", readNovelURL, novelName, startChapter))
+		novel, isNextPage := scraper.scrapPage(c, fmt.Sprintf("%s/%s/chapter-%04d.html", readNovelURL, novelName, startChapter))
 		novel.Chapter = startChapter
-		exportNovel("/home/mrcolorado/Novels", novelName, novel)
+		utils.ExportNovelChapter("/home/mrcolorado/Novels", novelName, novel)
 
 		if isNextPage == false {
 			break
