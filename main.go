@@ -1,21 +1,19 @@
 package main
 
-import (
-	"github.com/MrColorado/epubScraper/converter"
-)
+import "github.com/MrColorado/epubScraper/converter"
 
 func main() {
 	// scraper := scraper.ReadNovelScraper{}
 	// c := colly.NewCollector()
-	// scraper.ScrapPartialNovel(c, "warlock-of-the-magus-world", 684, 684)
-	// scraper.ScrapeNovel(c, "rebuild-world")
+	// scraper.ScrapPartialNovel(c, "warlock-of-the-magus-world", 1, 1, "/home/mrcolorado/Novels/raw")
+	//scraper.ScrapeNovel(c, "warlock-of-the-magus-world", "/home/mrcolorado/Novels/raw")
 
 	converter := converter.EpubConverter{}
 	// converter.ConvertPartialNovel("/home/mrcolorado/Novels/raw/warlock-of-the-magus-world",
 	// 	"/home/mrcolorado/Novels/epub/warlock-of-the-magus-world",
-	// 	684, 784)
-	converter.ConvertPartialNovel("/home/mrcolorado/Novels/raw/warlock-of-the-magus-world",
-		"/home/mrcolorado/Novels/epub/warlock-of-the-magus-world", 700, 850)
+	// 	1, 50)
+	converter.ConvertNovel("/home/mrcolorado/Novels/raw/warlock-of-the-magus-world",
+		"/home/mrcolorado/Novels/epub/warlock-of-the-magus-world")
 
 	// for _, novelData := range novelsData {
 	// 	fmt.Println("---------------------------------------------------")

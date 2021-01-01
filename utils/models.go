@@ -7,10 +7,11 @@ type NovelChapterData struct {
 	Paragraph []string
 }
 
-// NovelData contain data for a (part of) novel
-type NovelData struct {
+// NovelMetaData contain data on the novel
+type NovelMetaData struct {
+	Title           string
 	Author          string
-	NumberOfChapter int
 	Summary         []string
-	Chapters        []NovelChapterData
+	NumberOfChapter int
+	ImagePath       string
 }
