@@ -90,3 +90,9 @@ func NumberOfChapter(path string) int {
 	}
 	return size
 }
+
+// MataDateAreExisting check if meta data are already exported
+func MataDateAreExisting(path string) bool {
+	_, err := os.Stat(path)
+	return os.IsExist(err)
+}

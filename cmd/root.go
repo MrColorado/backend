@@ -87,7 +87,7 @@ func rootFunc() {
 func scrape() {
 	c := colly.NewCollector()
 	scraper := scraper.ReadNovelScraper{}
-	if partialOpt.endChapter > 0 {
+	if partialOpt.endChapter > 1 {
 		scraper.ScrapPartialNovel(c, rootOpt.novelName, partialOpt.startChapter, partialOpt.endChapter, "/home/mrcolorado/Novels/raw")
 	} else {
 		scraper.ScrapeNovel(c, rootOpt.novelName, "/home/mrcolorado/Novels/raw")
@@ -96,7 +96,7 @@ func scrape() {
 
 func convert() {
 	converter := converter.EpubConverter{}
-	if partialOpt.endChapter > 0 {
+	if partialOpt.endChapter > 1 {
 		converter.ConvertPartialNovel("/home/mrcolorado/Novels/raw", "/home/mrcolorado/Novels/epub", partialOpt.startChapter, partialOpt.endChapter)
 	} else {
 		converter.ConvertNovel(fmt.Sprintf("/home/mrcolorado/Novels/raw/%s", rootOpt.novelName),

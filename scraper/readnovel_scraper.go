@@ -45,22 +45,7 @@ func (scraper *ReadNovelScraper) scrapMetaData(c *colly.Collector, url string, o
 		})
 	})
 
-	// c.OnResponse(func(r *colly.Response) {
-	// 	if strings.Index(r.Headers.Get("Content-Type"), "image/jpeg") > -1 {
-	// 		imagePath := fmt.Sprintf("%s/index.%s", outputPath, filepath.Ext(r.Request.URL.String()))
-	// 		fmt.Printf("Image path : %s\n", imagePath)
-	// 		if r.Save(imagePath) != nil {
-	// 			fmt.Println("Fail to save image")
-	// 		} else {
-	// 			novelMetaData.ImagePath = imagePath
-	// 		}
-	// 	} else {
-	// 		fmt.Println("Image not found")
-	// 	}
-	// })
-
 	c.Visit(url)
-
 	return novelMetaData
 }
 
@@ -91,8 +76,10 @@ func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (util
 
 // ScrapPartialNovel get specified chapter of a novel
 func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName string, startChapter int, endChapter int, outputPath string) {
-	novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), outputPath, novelName)
-	utils.ExportNovelMetaData(outputPath, novelMetaData)
+	if utils.MataDateAreExisting(fmt.Sprintf("%s/%s.html", readNovelURL, novelName)) {
+		novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), outputPath, novelName)
+		utils.ExportNovelMetaData(outputPath, novelMetaData)
+	}
 	for ; startChapter <= endChapter; startChapter++ {
 		novel, isNextPage := scraper.scrapPage(c, fmt.Sprintf("%s/%s/chapter-%d.html", readNovelURL, novelName, startChapter))
 		novel.Chapter = startChapter
@@ -106,7 +93,19 @@ func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName
 
 // ScrapeNovel get each chater of a specific novel
 func (scraper *ReadNovelScraper) ScrapeNovel(c *colly.Collector, novelName string, outputPath string) {
-	novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), outputPath, novelName)
-	utils.ExportNovelMetaData(outputPath, novelMetaData)
-	scraper.ScrapPartialNovel(c, novelName, 1, novelMetaData.NumberOfChapter, outputPath)
+	nbChapter := 0
+	if utils.MataDateAreExisting(fmt.Sprintf("%s/%s.html", readNovelURL, novelName)) {
+		fmt.Println("FUCK")
+		novelData, err := utils.ImportMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName))
+		if err != nil {
+			return
+		}
+		nbChapter = novelData.NumberOfChapter
+	} else {
+		fmt.Println(fmt.Sprintf("%s/%s.html", readNovelURL, novelName))
+		novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), outputPath, novelName)
+		utils.ExportNovelMetaData(outputPath, novelMetaData)
+		nbChapter = novelMetaData.NumberOfChapter
+	}
+	scraper.ScrapPartialNovel(c, novelName, 1, nbChapter, outputPath)
 }
