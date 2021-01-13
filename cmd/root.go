@@ -14,6 +14,7 @@ type RootOpt struct {
 	action      Flags
 	websiteName Flags
 	novelName   string
+	outputPath  string
 }
 
 var (
@@ -71,6 +72,7 @@ func init() {
 	rootCmd.Flags().Var(&rootOpt.action, "action", rootOpt.action.Usage)
 	rootCmd.Flags().Var(&rootOpt.websiteName, "website-name", rootOpt.websiteName.Usage)
 	rootCmd.Flags().StringVar(&rootOpt.novelName, "novel-name", "", "Name of the novel")
+	rootCmd.Flags().StringVar(&rootOpt.outputPath, "output-path", "~/Novels", "Location of files")
 }
 
 func rootFunc() {
@@ -88,23 +90,26 @@ func scrape() {
 	c := colly.NewCollector()
 	scraper := scraper.ReadNovelScraper{}
 	if partialOpt.endChapter > 1 {
-		scraper.ScrapPartialNovel(c, rootOpt.novelName, partialOpt.startChapter, partialOpt.endChapter, "/home/mrcolorado/Novels/raw")
+		scraper.ScrapPartialNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath),
+			partialOpt.startChapter, partialOpt.endChapter)
 	} else {
-		scraper.ScrapeNovel(c, rootOpt.novelName, "/home/mrcolorado/Novels/raw")
+		scraper.ScrapeNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath))
 	}
 }
 
 func convert() {
 	converter := converter.EpubConverter{}
 	if partialOpt.endChapter > 1 {
-		converter.ConvertPartialNovel("/home/mrcolorado/Novels/raw", "/home/mrcolorado/Novels/epub", partialOpt.startChapter, partialOpt.endChapter)
+		converter.ConvertPartialNovel(fmt.Sprintf("%s/raw/%s", rootOpt.outputPath, rootOpt.novelName),
+			fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName), partialOpt.startChapter, partialOpt.endChapter)
 	} else {
-		converter.ConvertNovel(fmt.Sprintf("/home/mrcolorado/Novels/raw/%s", rootOpt.novelName),
-			fmt.Sprintf("/home/mrcolorado/Novels/epub/%s", rootOpt.novelName))
+		converter.ConvertNovel(fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName),
+			fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName))
 	}
 }
 
 func generate() {
 	scrape()
+	return
 	convert()
 }

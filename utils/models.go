@@ -12,6 +12,7 @@ type NovelMetaData struct {
 	Title           string
 	Author          string
 	Summary         []string
-	NumberOfChapter int
 	ImagePath       string
+	FirstChapterURL string
+	NextURL         string
 }

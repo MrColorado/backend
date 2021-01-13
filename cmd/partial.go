@@ -16,7 +16,7 @@ var (
 		Use:   "partial",
 		Short: "Indicate between wich chapter action must be done",
 		Run: func(cmd *cobra.Command, args []string) {
-			rootFunc()
+			// rootFunc()
 		},
 	}
 )

@@ -25,8 +25,8 @@ func ExportNovelChapter(path string, novelName string, novelChapterData NovelCha
 }
 
 // ExportNovelMetaData write novel meta data on disk
-func ExportNovelMetaData(path string, novelMetaData NovelMetaData) {
-	directoryPath := fmt.Sprintf("%s/%s", path, novelMetaData.Title)
+func ExportNovelMetaData(path string, novelName string, novelMetaData NovelMetaData) {
+	directoryPath := fmt.Sprintf("%s/%s", path, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		if os.Mkdir(directoryPath, os.ModePerm) != nil {
 			fmt.Printf("Failed to create directory : %s\n", directoryPath)
@@ -46,7 +46,7 @@ func ImportNovel(path string) (NovelChapterData, error) {
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
-		return NovelChapterData{}, fmt.Errorf("Failed to read %s", path)
+		return NovelChapterData{}, fmt.Errorf("Failed to readFile %s", path)
 	}
 
 	nodelData := NovelChapterData{}
@@ -59,10 +59,10 @@ func ImportNovel(path string) (NovelChapterData, error) {
 
 // ImportMetaData read novel meta data from disk
 func ImportMetaData(path string) (NovelMetaData, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/meta_data.json", path))
 
 	if err != nil {
-		return NovelMetaData{}, fmt.Errorf("Failed to read %s", path)
+		return NovelMetaData{}, fmt.Errorf("Failed to readFile %s/meta_data.json", path)
 	}
 
 	novelMetaData := NovelMetaData{}
@@ -70,7 +70,7 @@ func ImportMetaData(path string) (NovelMetaData, error) {
 		return NovelMetaData{}, fmt.Errorf("Failed to unmarshal %s", path)
 	}
 
-	fmt.Printf("Import meta data from %s\n", path)
+	fmt.Printf("Import meta data from %s/meta_data.json\n", path)
 	return novelMetaData, nil
 }
 
@@ -91,8 +91,15 @@ func NumberOfChapter(path string) int {
 	return size
 }
 
-// MataDateAreExisting check if meta data are already exported
-func MataDateAreExisting(path string) bool {
-	_, err := os.Stat(path)
-	return os.IsExist(err)
+// MataDataNotExist check if meta data are already exported
+func MataDataNotExist(path string) bool {
+	directoryPath := fmt.Sprintf("%s", path)
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		if os.Mkdir(directoryPath, os.ModePerm) != nil {
+			fmt.Printf("Failed to create directory : %s\n", directoryPath)
+		}
+	}
+
+	_, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
+	return os.IsNotExist(err)
 }
