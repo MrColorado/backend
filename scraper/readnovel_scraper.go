@@ -31,10 +31,7 @@ func (scraper *ReadNovelScraper) getNbChapter(c *colly.Collector, url string) in
 
 func (scraper *ReadNovelScraper) scrapMetaData(c *colly.Collector, url string, novelName string) utils.NovelMetaData {
 	fmt.Printf("Scrape : %s\n", url)
-	novelMetaData := utils.NovelMetaData{
-		Title: novelName,
-		// ImagePath: fmt.Sprintf("%s/%s/cover", outputPath, novelName),
-	}
+	var novelMetaData utils.NovelMetaData
 
 	c.OnHTML(".btn-read-now", func(e *colly.HTMLElement) {
 		novelMetaData.FirstChapterURL = readNovelURL + e.Attr("href")
@@ -72,11 +69,7 @@ func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (util
 
 	c.OnHTML("#chr-content", func(e *colly.HTMLElement) {
 		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
-			if title := paragraph.ChildText("span"); title != "" {
-				novelData.Title = title
-			} else {
-				novelData.Paragraph = append(novelData.Paragraph, paragraph.Text)
-			}
+			novelData.Paragraph = append(novelData.Paragraph, paragraph.Text)
 		})
 	})
 
@@ -88,6 +81,7 @@ func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (util
 // ScrapeNovel get each chater of a specific novel
 func (scraper *ReadNovelScraper) ScrapeNovel(c *colly.Collector, novelName string, outputPath string) {
 	nbChapter := scraper.getNbChapter(colly.NewCollector(), fmt.Sprintf("%s/%s.html", readNovelURL, novelName))
+	fmt.Printf("Number of chapter : %d\n", nbChapter)
 	scraper.ScrapPartialNovel(c, novelName, outputPath, 1, nbChapter)
 }
 
@@ -95,10 +89,10 @@ func (scraper *ReadNovelScraper) ScrapeNovel(c *colly.Collector, novelName strin
 func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName string, outputPath string, startChapter int, endChapter int) {
 	if utils.MataDataNotExist(fmt.Sprintf("%s/%s", outputPath, novelName)) {
 		novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), novelName)
-		utils.ExportNovelMetaData(outputPath, novelName, novelMetaData)
+		utils.ExportMetaData(outputPath, novelName, novelMetaData)
 	}
 
-	novelMetaData, err := utils.ImportMetaData(fmt.Sprintf("%s/%s", outputPath, novelName))
+	novelMetaData, err := utils.ImportMetaData(outputPath, novelName)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -114,6 +108,6 @@ func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName
 		novel.Chapter = startChapter
 		novelMetaData.NextURL = url
 		utils.ExportNovelChapter(outputPath, novelName, novel)
-		utils.ExportNovelMetaData(outputPath, novelName, novelMetaData)
+		utils.ExportMetaData(outputPath, novelName, novelMetaData)
 	}
 }

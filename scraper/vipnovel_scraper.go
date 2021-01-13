@@ -23,16 +23,8 @@ func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (utils
 	novelData := utils.NovelChapterData{}
 	nextPageURL := ""
 
-	c.OnRequest(func(r *colly.Request) {
-		// fmt.Println("Visiting", r.URL)
-	})
-
 	c.OnHTML(".next_page", func(e *colly.HTMLElement) {
 		nextPageURL = e.Attr("href")
-	})
-
-	c.OnHTML("h3", func(e *colly.HTMLElement) {
-		novelData.Title = e.Text
 	})
 
 	c.OnHTML(".text-left", func(e *colly.HTMLElement) {

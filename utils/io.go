@@ -24,8 +24,8 @@ func ExportNovelChapter(path string, novelName string, novelChapterData NovelCha
 	ioutil.WriteFile(fmt.Sprintf("%s/%04d.json", directoryPath, novelChapterData.Chapter), j, os.ModePerm)
 }
 
-// ExportNovelMetaData write novel meta data on disk
-func ExportNovelMetaData(path string, novelName string, novelMetaData NovelMetaData) {
+// ExportMetaData write novel meta data on disk
+func ExportMetaData(path string, novelName string, novelMetaData NovelMetaData) {
 	directoryPath := fmt.Sprintf("%s/%s", path, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		if os.Mkdir(directoryPath, os.ModePerm) != nil {
@@ -58,8 +58,8 @@ func ImportNovel(path string) (NovelChapterData, error) {
 }
 
 // ImportMetaData read novel meta data from disk
-func ImportMetaData(path string) (NovelMetaData, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("%s/meta_data.json", path))
+func ImportMetaData(path string, novelName string) (NovelMetaData, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/meta_data.json", path, novelName))
 
 	if err != nil {
 		return NovelMetaData{}, fmt.Errorf("Failed to readFile %s/meta_data.json", path)
@@ -70,13 +70,13 @@ func ImportMetaData(path string) (NovelMetaData, error) {
 		return NovelMetaData{}, fmt.Errorf("Failed to unmarshal %s", path)
 	}
 
-	fmt.Printf("Import meta data from %s/meta_data.json\n", path)
+	fmt.Printf("Import meta data from %s/%s/meta_data.json\n", path, novelName)
 	return novelMetaData, nil
 }
 
 // NumberOfChapter return the chapter number of a novel
-func NumberOfChapter(path string) int {
-	files, err := ioutil.ReadDir(path)
+func NumberOfChapter(path string, novelName string) int {
+	files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s", path, novelName))
 
 	if err != nil {
 		fmt.Printf("Failed to readDir %s\n", path)

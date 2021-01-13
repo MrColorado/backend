@@ -83,7 +83,6 @@ func rootFunc() {
 	} else {
 		generate()
 	}
-
 }
 
 func scrape() {
@@ -100,16 +99,15 @@ func scrape() {
 func convert() {
 	converter := converter.EpubConverter{}
 	if partialOpt.endChapter > 1 {
-		converter.ConvertPartialNovel(fmt.Sprintf("%s/raw/%s", rootOpt.outputPath, rootOpt.novelName),
-			fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName), partialOpt.startChapter, partialOpt.endChapter)
+		converter.ConvertPartialNovel(fmt.Sprintf("%s/raw", rootOpt.outputPath), fmt.Sprintf("%s/epub", rootOpt.outputPath),
+			rootOpt.novelName, partialOpt.startChapter, partialOpt.endChapter)
 	} else {
-		converter.ConvertNovel(fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName),
-			fmt.Sprintf("%s/epub/%s", rootOpt.outputPath, rootOpt.novelName))
+		converter.ConvertNovel(fmt.Sprintf("%s/raw", rootOpt.outputPath),
+			fmt.Sprintf("%s/epub", rootOpt.outputPath), rootOpt.novelName)
 	}
 }
 
 func generate() {
 	scrape()
-	return
 	convert()
 }

@@ -2,7 +2,6 @@ package utils
 
 // NovelChapterData contain data of a chapter
 type NovelChapterData struct {
-	Title     string
 	Chapter   int
 	Paragraph []string
 }
