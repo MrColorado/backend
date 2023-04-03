@@ -1,11 +1,7 @@
 package scraper
 
-import (
-	"github.com/gocolly/colly"
-)
-
 // Scraper of each website should implement this interface
 type Scraper interface {
-	ScrapeNovel(c *colly.Collector, novelName string, outputPath string)
-	ScrapPartialNovel(c *colly.Collector, novelName string, outputPath string, startChapter int, endChapter int)
+	ScrapeNovel(novelName string)
+	ScrapPartialNovel(novelName string, startChapter int, nbChapter int)
 }

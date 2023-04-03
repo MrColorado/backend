@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MrColorado/epubScraper/config"
 	"github.com/MrColorado/epubScraper/utils"
 
 	"github.com/gocolly/colly"
@@ -15,9 +16,12 @@ const (
 )
 
 // ReadNovelScraper scrapper use to scrap https://vipnovel.com/ website
-type ReadNovelScraper struct{}
+type ReadNovelScraper struct {
+	collector *colly.Collector
+	io        utils.IO
+}
 
-func (scraper *ReadNovelScraper) getNbChapter(c *colly.Collector, url string) int {
+func (scraper ReadNovelScraper) getNbChapter(c *colly.Collector, url string) int {
 	nbChapter := 0
 
 	c.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
@@ -29,7 +33,7 @@ func (scraper *ReadNovelScraper) getNbChapter(c *colly.Collector, url string) in
 	return nbChapter
 }
 
-func (scraper *ReadNovelScraper) scrapMetaData(c *colly.Collector, url string, novelName string) utils.NovelMetaData {
+func (scraper ReadNovelScraper) scrapMetaData(c *colly.Collector, url string, novelName string) utils.NovelMetaData {
 	fmt.Printf("Scrape : %s\n", url)
 	var novelMetaData utils.NovelMetaData
 
@@ -58,7 +62,7 @@ func (scraper *ReadNovelScraper) scrapMetaData(c *colly.Collector, url string, n
 	return novelMetaData
 }
 
-func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (utils.NovelChapterData, string) {
+func (scraper ReadNovelScraper) scrapPage(c *colly.Collector, url string) (utils.NovelChapterData, string) {
 	fmt.Printf("Scrape : %s\n", url)
 	novelData := utils.NovelChapterData{}
 	nextURL := ""
@@ -78,21 +82,30 @@ func (scraper *ReadNovelScraper) scrapPage(c *colly.Collector, url string) (util
 	return novelData, nextURL
 }
 
+func NewReadNovelScrapper(_ config.ScraperConfigStruct, io utils.IO) ReadNovelScraper {
+	return ReadNovelScraper{
+		collector: colly.NewCollector(),
+		io:        io,
+	}
+}
+
 // ScrapeNovel get each chater of a specific novel
-func (scraper *ReadNovelScraper) ScrapeNovel(c *colly.Collector, novelName string, outputPath string) {
+func (scraper ReadNovelScraper) ScrapeNovel(novelName string, _ string) {
 	nbChapter := scraper.getNbChapter(colly.NewCollector(), fmt.Sprintf("%s/%s.html", readNovelURL, novelName))
 	fmt.Printf("Number of chapter : %d\n", nbChapter)
-	scraper.ScrapPartialNovel(c, novelName, outputPath, 1, nbChapter)
+	scraper.ScrapPartialNovel(scraper.collector, novelName, 1, nbChapter)
 }
 
 // ScrapPartialNovel get specified chapter of a novel
-func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName string, outputPath string, startChapter int, endChapter int) {
-	if utils.MataDataNotExist(fmt.Sprintf("%s/%s", outputPath, novelName)) {
+func (scraper ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName string, startChapter int, endChapter int) {
+	if scraper.io.MataDataNotExist(fmt.Sprintf("%s/%s", "outputPath", novelName)) {
 		novelMetaData := scraper.scrapMetaData(c, fmt.Sprintf("%s/%s.html", readNovelURL, novelName), novelName)
-		utils.ExportMetaData(outputPath, novelName, novelMetaData)
+		scraper.io.ExportMetaData(novelName, novelMetaData)
 	}
 
-	novelMetaData, err := utils.ImportMetaData(outputPath, novelName)
+	return
+
+	novelMetaData, err := scraper.io.ImportMetaData("outputPath", novelName)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -107,7 +120,7 @@ func (scraper *ReadNovelScraper) ScrapPartialNovel(c *colly.Collector, novelName
 		novel, url = scraper.scrapPage(c, url)
 		novel.Chapter = startChapter
 		novelMetaData.NextURL = url
-		utils.ExportNovelChapter(outputPath, novelName, novel)
-		utils.ExportMetaData(outputPath, novelName, novelMetaData)
+		scraper.io.ExportNovelChapter("outputPath", novelName, novel)
+		scraper.io.ExportMetaData(novelName, novelMetaData)
 	}
 }
