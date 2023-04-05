@@ -1,69 +1,90 @@
 package converter
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 
+	"github.com/MrColorado/epubScraper/configuration"
 	"github.com/MrColorado/epubScraper/utils"
 	"github.com/bmaupin/go-epub"
 )
 
 // EpubConverter convert novel data ton epub format
-type EpubConverter struct{}
+type EpubConverter struct {
+	io utils.IO
+}
 
-func (converter *EpubConverter) convertMetaData(e *epub.Epub, inputPath string, novelName string) {
-	novelMetaData, err := utils.ImportMetaData(inputPath, novelName)
+func NewEpubConverter(_ configuration.ConverterConfigStruct, io utils.IO) EpubConverter {
+	return EpubConverter{
+		io: io,
+	}
+}
+
+func (converter EpubConverter) convertMetaData(e *epub.Epub, novelName string) error {
+	var metaData utils.NovelMetaData
+	err := converter.io.ImportMetaData(novelName, &metaData)
 	if err != nil {
 		println(err.Error())
-		return
+		return fmt.Errorf("failed to import metaData for novel %s", novelName)
 	}
-	e.SetAuthor(novelMetaData.Author)
+
+	e.SetAuthor(metaData.Author)
 	summary := ""
-	for _, paragraph := range novelMetaData.Summary {
+	for _, paragraph := range metaData.Summary {
 		summary += fmt.Sprintf("<p>%s</p>", paragraph)
 	}
 	e.SetDescription(summary)
 
-	coverImagePath, _ := e.AddImage(novelMetaData.ImagePath, "cover.png")
-	e.SetCover(coverImagePath, "")
+	return nil
 }
 
-func (converter *EpubConverter) convertToNovel(inputPath string, outputPath string, novelName string, startChapter int, endChapter int) {
-	e := epub.NewEpub(fmt.Sprintf("%s %d-%d", novelName, startChapter, endChapter))
-	converter.convertMetaData(e, inputPath, novelName)
+func (converter EpubConverter) convertToNovel(novelName string, startChapter int, endChapter int) error {
+	fileName := fmt.Sprintf("%s-%d-%d", novelName, startChapter, endChapter)
+	e := epub.NewEpub(fileName)
+	converter.convertMetaData(e, novelName)
 
 	for i := startChapter; i <= endChapter; i++ {
-		novelChapterData, err := utils.ImportNovel(fmt.Sprintf("%s/%s/%04d.json", inputPath, novelName, i))
+		chapterData := utils.NovelChapterData{
+			Chapter: i,
+		}
+		err := converter.io.ImportNovelChapter(novelName, &chapterData)
 		if err != nil {
-			println(err.Error())
+			fmt.Println(err.Error())
 			continue
 		}
 
-		bodySection := fmt.Sprintf("<h1>Chapter %d</h1>", novelChapterData.Chapter)
-		for _, paragraph := range novelChapterData.Paragraph {
+		bodySection := fmt.Sprintf("<h1>Chapter %d</h1>", chapterData.Chapter)
+		for _, paragraph := range chapterData.Paragraph {
 			bodySection += fmt.Sprintf("<p>%s</p>", paragraph)
 		}
 		if _, err := e.AddSection(bodySection, fmt.Sprintf("Chapter %d", i), "", ""); err != nil {
-			fmt.Printf("Fail to add chapter %d of novel %s\n", i, novelName)
+			fmt.Printf("fail to add chapter %d of novel %s\n", i, novelName)
+			continue
 		}
 	}
 
-	directoryPath := fmt.Sprintf("%s/%s", outputPath, novelName)
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-		}
+	buf := new(bytes.Buffer)
+	_, err := e.WriteTo(buf)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to write epub file %s in a buffer", fileName)
 	}
-
-	e.Write(fmt.Sprintf("%s/%s/%s_%04d-%04d.epub", outputPath, novelName, novelName, startChapter, endChapter))
-	fmt.Printf("%s/%s/%s_%04d-%04d.epub\n", outputPath, novelName, novelName, startChapter, endChapter)
+	err = converter.io.ExportBook(novelName, fileName, buf.Bytes())
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export epub file %s", fileName)
+	}
+	return nil
 }
 
 // ConvertPartialNovel convert partial novel to epub (startChapter include / endChapter included)
-func (converter *EpubConverter) ConvertPartialNovel(inputPath string, outputPath string, novelName string, startChapter int, endChapter int) {
+func (converter EpubConverter) ConvertPartialNovel(novelName string, startChapter int, endChapter int) error {
 	if endChapter > 100 && startChapter%100 != 1 {
 		toModulo100 := 100 - startChapter%100
-		converter.convertToNovel(inputPath, outputPath, novelName, startChapter, startChapter+toModulo100)
+		err := converter.convertToNovel(novelName, startChapter, startChapter+toModulo100)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 		startChapter += toModulo100
 	}
 
@@ -71,25 +92,44 @@ func (converter *EpubConverter) ConvertPartialNovel(inputPath string, outputPath
 	firstBook := startChapter / 100
 
 	for i := firstBook; i < firstBook+numberOfBook; i++ {
-		converter.convertToNovel(inputPath, outputPath, novelName, i*100+1, (i+1)*100)
+		err := converter.convertToNovel(novelName, i*100+1, (i+1)*100)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 
 	if endChapter%100 != 0 {
-		converter.convertToNovel(inputPath, outputPath, novelName, (firstBook+numberOfBook)*100+1, endChapter)
+		err := converter.convertToNovel(novelName, (firstBook+numberOfBook)*100+1, endChapter)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
+	return nil
 }
 
 // ConvertNovel convert every novel in inputPath to epub format
-func (converter *EpubConverter) ConvertNovel(inputPath string, outputPath string, novelName string) {
-	numbreOfChapter := utils.NumberOfChapter(inputPath, novelName)
-	fmt.Printf("Number of book : %d\n", numbreOfChapter)
-	numberOfBook := numbreOfChapter / 100
-
-	for i := 0; i < numberOfBook; i++ {
-		converter.convertToNovel(inputPath, outputPath, novelName, i*100+1, (i+1)*100)
+func (converter EpubConverter) ConvertNovel(novelName string) error {
+	nbChapter, err := converter.io.NumberOfChapter(novelName)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to get number of chapter for novel %s", novelName)
 	}
 
-	if numbreOfChapter%100 != 0 {
-		converter.convertToNovel(inputPath, outputPath, novelName, numberOfBook*100+1, numbreOfChapter)
+	nbBook := nbChapter / 100
+	fmt.Printf("for novel %s there are %d chapter and so %d books\n", novelName, nbChapter, nbBook+nbChapter%100)
+
+	for i := 0; i < nbBook; i++ {
+		err := converter.convertToNovel(novelName, i*100+1, (i+1)*100)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
+
+	if nbChapter%100 != 0 {
+		err := converter.convertToNovel(novelName, nbBook*100+1, nbChapter)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+	return nil
 }

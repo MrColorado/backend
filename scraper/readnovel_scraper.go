@@ -20,7 +20,7 @@ type ReadNovelScraper struct {
 	io        utils.IO
 }
 
-func (scraper *ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.NovelMetaData) {
+func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.NovelMetaData) {
 	fmt.Printf("Scrape metaData : %s\n", url)
 
 	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
@@ -63,7 +63,7 @@ func (scraper *ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.
 	scraper.collector.Visit(url)
 }
 
-func (scraper *ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelChapterData) string {
+func (scraper ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelChapterData) string {
 	fmt.Printf("Scrape : %s\n", url)
 	nextURL := ""
 

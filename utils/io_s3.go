@@ -21,13 +21,17 @@ func NewS3IO(awsClient *awsWrapper.AwsClient) S3IO {
 func (io S3IO) ExportNovelChapter(novelName string, novelChapterData NovelChapterData) error {
 	content, err := json.Marshal(novelChapterData)
 	if err != nil {
-		fmt.Printf("Failed to marshalize chapter %d of novel %s\n", novelChapterData.Chapter, novelName)
-		return err
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshalize chapter %d of novel %s", novelChapterData.Chapter, novelName)
 	}
 
 	exportName := fmt.Sprintf("%04d.json", novelChapterData.Chapter)
-	fmt.Printf("Export %s/%s\n", novelName, exportName)
+	fmt.Printf("Export %s/raw/%s\n", novelName, exportName)
 	io.awsClient.UploadFile(fmt.Sprintf("%s/raw", novelName), exportName, content)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export chapter %d of novel %s", novelChapterData.Chapter, novelName)
+	}
 	return nil
 }
 
@@ -35,56 +39,63 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData NovelChapte
 func (io S3IO) ExportMetaData(novelName string, novelMetaData NovelMetaData) error {
 	content, err := json.Marshal(novelMetaData)
 	if err != nil {
-		fmt.Printf("Failed to marshalize meta data of novel %s\n", novelMetaData.Title)
-		return err
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshalize meta data of novel %s", novelMetaData.Title)
 	}
 	fmt.Printf("Export meta data of %s at path %s/meta_data.json\n", novelMetaData.Title, novelName)
 	io.awsClient.UploadFile(fmt.Sprintf("%s/raw", novelName), "meta_data.json", content)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export meta data of novel %s", novelName)
+	}
 	return nil
 }
 
-// ImportMetaData read novel meta data from disk
+// ImportNovelChapter read novel chapter from s3
+func (io S3IO) ImportNovelChapter(novelName string, chapterData *NovelChapterData) error {
+	content, err := io.awsClient.DownLoadFile(fmt.Sprintf("%s/raw", novelName), fmt.Sprintf("%04d.json", chapterData.Chapter))
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to get chapter %d of novel %s", chapterData.Chapter, novelName)
+	}
+
+	if json.Unmarshal([]byte(content), chapterData) != nil {
+		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
+	}
+	return nil
+}
+
+// ImportMetaData read novel meta data from s3
 func (io S3IO) ImportMetaData(novelName string, novelMetaData *NovelMetaData) error {
 	content, err := io.awsClient.DownLoadFile(fmt.Sprintf("%s/raw", novelName), "meta_data.json")
 	if err != nil {
+		fmt.Println(err.Error())
 		return fmt.Errorf("failed to get meta_data of novel %s", novelName)
 	}
 
 	if json.Unmarshal([]byte(content), novelMetaData) != nil {
 		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
 	}
-
 	return nil
 }
 
 // NumberOfChapter return the chapter number of a novel
-func (io S3IO) NumberOfChapter(_ string) (int, error) {
-	// files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s", path, novelName))
-
-	// if err != nil {
-	// 	fmt.Printf("Failed to readDir %s\n", path)
-	// 	return 0
-	// }
-	// size := len(files)
-	// for _, file := range files {
-	// 	if file.Name() == "meta_data.json" || file.Name() == "cover" {
-	// 		size--
-	// 	}
-	// }
-	// return size
-	return 0, nil
+func (io S3IO) NumberOfChapter(novelName string) (int, error) {
+	filesName, err := io.awsClient.ListFiles(fmt.Sprintf("%s/raw", novelName))
+	if err != nil {
+		fmt.Println(err.Error())
+		return 0, fmt.Errorf("failed to list files of novel %s", novelName)
+	}
+	return len(filesName) - 1, nil
 }
 
-// MataDataNotExist check if meta data are already exported
-func (io S3IO) MataDataNotExist() bool {
-	// directoryPath := fmt.Sprintf("%s", path)
-	// if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-	// 	if os.Mkdir(directoryPath, os.ModePerm) != nil {
-	// 		fmt.Printf("Failed to create directory : %s\n", directoryPath)
-	// 	}
-	// }
-
-	// _, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
-	// return os.IsNotExist(err)
-	return true
+func (io S3IO) ExportBook(novelName string, bookName string, content []byte) error {
+	exportName := fmt.Sprintf("%s.epub", bookName)
+	fmt.Printf("Export book %s of novel %s\n", exportName, novelName)
+	err := io.awsClient.UploadFile(fmt.Sprintf("%s/epub", novelName), exportName, content)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export book %s of novel %s", exportName, novelName)
+	}
+	return nil
 }

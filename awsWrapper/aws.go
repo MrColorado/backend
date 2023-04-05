@@ -75,3 +75,19 @@ func (client *AwsClient) DownLoadFile(filePath string, fileName string) ([]byte,
 	}
 	return body, err
 }
+
+func (client *AwsClient) ListFiles(filePath string) ([]string, error) {
+	result, err := client.s3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+	})
+
+	if err != nil {
+		log.Printf("Couldn't list objects in bucket %v. Here's why: %v\n", bucketName, err)
+		return []string{}, nil
+	}
+	var filesName []string
+	for _, data := range result.Contents {
+		filesName = append(filesName, *data.Key)
+	}
+	return filesName, nil
+}

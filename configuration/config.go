@@ -9,14 +9,15 @@ type AwsConfigStruct struct {
 }
 
 type ScraperConfigStruct struct {
-	S3Location string
-	S3UserName string
-	S3Password string
+}
+
+type ConverterConfigStruct struct {
 }
 
 type Config struct {
-	AwsConfig     AwsConfigStruct
-	ScraperConfig ScraperConfigStruct
+	AwsConfig       AwsConfigStruct
+	ScraperConfig   ScraperConfigStruct
+	ConverterConfig ConverterConfigStruct
 }
 
 func GetConfig() Config {
