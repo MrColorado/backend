@@ -17,3 +17,5 @@
 volumes
 .env
 epubScraper
+.vscode
+

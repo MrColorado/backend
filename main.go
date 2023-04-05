@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/MrColorado/epubScraper/awsWrapper"
-	"github.com/MrColorado/epubScraper/config"
+	"github.com/MrColorado/epubScraper/configuration"
 	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 )
@@ -14,9 +14,9 @@ import (
 // }
 
 func main() {
-	config := config.GetConfig()
+	config := configuration.GetConfig()
 	client := awsWrapper.NewClient(config.AwsConfig)
-	io := utils.NewS3IO(client)
-	scraper := scraper.NewReadNovelScrapper(config.ScraperConfig, io)
-	scraper.ScrapeNovel("pocket-hunting-dimension-v1", "")
+	var io utils.IO = utils.NewS3IO(client)
+	var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
+	scraper.ScrapeNovel("pocket-hunting-dimension-v1")
 }

@@ -3,8 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 
 	"github.com/MrColorado/epubScraper/awsWrapper"
 )
@@ -20,78 +18,74 @@ func NewS3IO(awsClient *awsWrapper.AwsClient) S3IO {
 }
 
 // ExportNovelChapter write novel chapter on s3
-func (io S3IO) ExportNovelChapter(path string, novelName string, novelChapterData NovelChapterData) {
-	directoryPath := fmt.Sprintf("%s/%s", path, novelName)
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-		}
-	}
-	j, err := json.Marshal(novelChapterData)
+func (io S3IO) ExportNovelChapter(novelName string, novelChapterData NovelChapterData) error {
+	content, err := json.Marshal(novelChapterData)
 	if err != nil {
 		fmt.Printf("Failed to marshalize chapter %d of novel %s\n", novelChapterData.Chapter, novelName)
-		return
+		return err
 	}
-	fmt.Printf("Export %s/%04d.json\n", directoryPath, novelChapterData.Chapter)
-	ioutil.WriteFile(fmt.Sprintf("%s/%04d.json", directoryPath, novelChapterData.Chapter), j, os.ModePerm)
+
+	exportName := fmt.Sprintf("%04d.json", novelChapterData.Chapter)
+	fmt.Printf("Export %s/%s\n", novelName, exportName)
+	io.awsClient.UploadFile(novelName, exportName, content)
+	return nil
 }
 
 // ExportMetaData write novel meta data on s3
-func (io S3IO) ExportMetaData(novelName string, novelMetaData NovelMetaData) {
-	j, err := json.Marshal(novelMetaData)
+func (io S3IO) ExportMetaData(novelName string, novelMetaData NovelMetaData) error {
+	content, err := json.Marshal(novelMetaData)
 	if err != nil {
 		fmt.Printf("Failed to marshalize meta data of novel %s\n", novelMetaData.Title)
-		return
+		return err
 	}
 	fmt.Printf("Export meta data of %s at path %s/meta_data.json\n", novelMetaData.Title, novelName)
-	io.awsClient.UploadFile(novelName, "meta_data.json", string(j))
+	io.awsClient.UploadFile(novelName, "meta_data.json", content)
+	return nil
 }
 
-// // ImportMetaData read novel meta data from disk
-func (io S3IO) ImportMetaData(path string, novelName string) (NovelMetaData, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/meta_data.json", path, novelName))
-
+// ImportMetaData read novel meta data from disk
+func (io S3IO) ImportMetaData(novelName string, novelMetaData *NovelMetaData) error {
+	content, err := io.awsClient.DownLoadFile(novelName, "meta_data.json")
 	if err != nil {
-		return NovelMetaData{}, fmt.Errorf("Failed to readFile %s/meta_data.json", path)
+		return fmt.Errorf("failed to get meta_data of novel %s", novelName)
 	}
 
-	novelMetaData := NovelMetaData{}
-	if json.Unmarshal(content, &novelMetaData) != nil {
-		return NovelMetaData{}, fmt.Errorf("Failed to unmarshal %s", path)
+	if json.Unmarshal([]byte(content), novelMetaData) != nil {
+		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
 	}
 
-	fmt.Printf("Import meta data from %s/%s/meta_data.json\n", path, novelName)
-	return novelMetaData, nil
+	return nil
 }
 
 // NumberOfChapter return the chapter number of a novel
-func (io S3IO) NumberOfChapter(path string, novelName string) int {
-	files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s", path, novelName))
+func (io S3IO) NumberOfChapter(_ string) (int, error) {
+	// files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s", path, novelName))
 
-	if err != nil {
-		fmt.Printf("Failed to readDir %s\n", path)
-		return 0
-	}
-	size := len(files)
-	for _, file := range files {
-		if file.Name() == "meta_data.json" || file.Name() == "cover" {
-			size--
-		}
-	}
-	return size
+	// if err != nil {
+	// 	fmt.Printf("Failed to readDir %s\n", path)
+	// 	return 0
+	// }
+	// size := len(files)
+	// for _, file := range files {
+	// 	if file.Name() == "meta_data.json" || file.Name() == "cover" {
+	// 		size--
+	// 	}
+	// }
+	// return size
+	return 0, nil
 }
 
 // MataDataNotExist check if meta data are already exported
-func (io S3IO) MataDataNotExist(path string) bool {
+func (io S3IO) MataDataNotExist() bool {
 	return true
 
-	directoryPath := fmt.Sprintf("%s", path)
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-		}
-	}
+	// directoryPath := fmt.Sprintf("%s", path)
+	// if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+	// 	if os.Mkdir(directoryPath, os.ModePerm) != nil {
+	// 		fmt.Printf("Failed to create directory : %s\n", directoryPath)
+	// 	}
+	// }
 
-	_, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
-	return os.IsNotExist(err)
+	// _, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
+	// return os.IsNotExist(err)
 }

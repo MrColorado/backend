@@ -1,15 +1,16 @@
 package awsWrapper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log"
-	"strings"
 
-	"github.com/MrColorado/epubScraper/config"
+	"github.com/MrColorado/epubScraper/configuration"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
@@ -23,8 +24,8 @@ type AwsClient struct {
 	s3Client *s3.Client
 }
 
-func NewClient(awsConfig config.AwsConfigStruct) *AwsClient {
-	staticResolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+func NewClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:       "aws",
 			URL:               awsConfig.S3Location,
@@ -33,22 +34,21 @@ func NewClient(awsConfig config.AwsConfigStruct) *AwsClient {
 		}, nil
 	})
 
-	cfg := aws.Config{
-		Region:           defaultRegion,
-		Credentials:      credentials.NewStaticCredentialsProvider(awsConfig.S3UserName, awsConfig.S3Password, ""),
-		EndpointResolver: staticResolver,
-	}
+	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+		config.WithEndpointResolverWithOptions(customResolver),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsConfig.S3UserName, awsConfig.S3Password, "")),
+	)
 
 	return &AwsClient{
 		s3Client: s3.NewFromConfig(cfg),
 	}
 }
 
-func (client *AwsClient) UploadFile(filePath string, fileName string, content string) error {
+func (client *AwsClient) UploadFile(filePath string, fileName string, content []byte) error {
 	_, err := client.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(fmt.Sprintf("%s/%s", filePath, fileName)),
-		Body:   strings.NewReader(content),
+		Body:   bytes.NewReader(content),
 	})
 
 	if err != nil {
@@ -59,19 +59,19 @@ func (client *AwsClient) UploadFile(filePath string, fileName string, content st
 	return err
 }
 
-func (client *AwsClient) DownLoadFile(filePath string) (string, error) {
+func (client *AwsClient) DownLoadFile(filePath string, fileName string) ([]byte, error) {
 	result, err := client.s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
-		Key:    aws.String(filePath),
+		Key:    aws.String(fmt.Sprintf("%s/%s", filePath, fileName)),
 	})
 	if err != nil {
 		log.Printf("Couldn't get object %v:%v. Here's why: %v\n", bucketName, filePath, err)
-		return "", err
+		return []byte{}, err
 	}
 
 	body, err := io.ReadAll(result.Body)
 	if err != nil {
 		log.Printf("Couldn't read object body from %v. Here's why: %v\n", filePath, err)
 	}
-	return string(body), err
+	return body, err
 }
