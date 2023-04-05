@@ -8,33 +8,25 @@ import (
 	"github.com/MrColorado/epubScraper/configuration"
 	"github.com/MrColorado/epubScraper/utils"
 
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 )
 
 const (
 	readNovelURL string = "https://readnovelfull.com"
 )
 
-// ReadNovelScraper scrapper use to scrap https://vipnovel.com/ website
 type ReadNovelScraper struct {
 	collector *colly.Collector
 	io        utils.IO
 }
 
-func (scraper ReadNovelScraper) getNbChapter(c *colly.Collector, url string) int {
-	nbChapter := 0
-
-	c.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
-		splittedString := strings.Split(e.ChildAttr("a", "title"), " ")
-		nbChapter, _ = strconv.Atoi(splittedString[1])
-	})
-
-	c.Visit(url)
-	return nbChapter
-}
-
-func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.NovelMetaData) {
+func (scraper *ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.NovelMetaData) {
 	fmt.Printf("Scrape metaData : %s\n", url)
+
+	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
+		splittedString := strings.Split(e.ChildAttr("a", "title"), " ")
+		novelMetaData.NbChapter, _ = strconv.Atoi(splittedString[1])
+	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
 		novelMetaData.Title = e.Text
@@ -55,15 +47,23 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.N
 			if title := li.ChildText("h3"); title == "Author:" {
 				li.ForEach("a", func(_ int, a *colly.HTMLElement) {
 					novelMetaData.Author = a.Text
-					return
 				})
 			}
 		})
 	})
+
+	defer func() {
+		scraper.collector.OnHTMLDetach("#tab-description")
+		scraper.collector.OnHTMLDetach(".btn-read-now")
+		scraper.collector.OnHTMLDetach(".l-chapter")
+		scraper.collector.OnHTMLDetach(".next_chap")
+		scraper.collector.OnHTMLDetach(".title")
+	}()
+
 	scraper.collector.Visit(url)
 }
 
-func (scraper ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelChapterData) string {
+func (scraper *ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelChapterData) string {
 	fmt.Printf("Scrape : %s\n", url)
 	nextURL := ""
 
@@ -76,9 +76,12 @@ func (scraper ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelCh
 			chapterData.Paragraph = append(chapterData.Paragraph, paragraph.Text)
 		})
 	})
+	defer func() {
+		scraper.collector.OnHTMLDetach("#chr-content")
+		scraper.collector.OnHTMLDetach("#next_chap")
+	}()
 
 	scraper.collector.Visit(url)
-
 	return nextURL
 }
 
@@ -91,9 +94,13 @@ func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.IO) Read
 
 // ScrapeNovel get each chater of a specific novel
 func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
-	nbChapter := scraper.getNbChapter(colly.NewCollector(), fmt.Sprintf("%s/%s.html", readNovelURL, novelName))
-	fmt.Printf("Number of chapter : %d\n", nbChapter)
-	scraper.ScrapPartialNovel(novelName, 1, nbChapter)
+	var metaData utils.NovelMetaData
+	err := scraper.io.ImportMetaData(novelName, &metaData)
+	if err != nil || metaData.Title == "" {
+		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &metaData)
+		scraper.io.ExportMetaData(novelName, metaData)
+	}
+	scraper.ScrapPartialNovel(novelName, 1, metaData.NbChapter)
 }
 
 // ScrapPartialNovel get specified chapter of a novel
@@ -119,5 +126,6 @@ func (scraper ReadNovelScraper) ScrapPartialNovel(novelName string, startChapter
 
 		scraper.io.ExportNovelChapter(novelName, chapterData)
 		scraper.io.ExportMetaData(novelName, metaData)
+		// scraper.collector = colly.NewCollector()
 	}
 }

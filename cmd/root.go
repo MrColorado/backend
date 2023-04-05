@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/MrColorado/epubScraper/converter"
-	"github.com/MrColorado/epubScraper/scraper"
-	"github.com/gocolly/colly"
 	"github.com/spf13/cobra"
 )
 
@@ -86,14 +84,14 @@ func rootFunc() {
 }
 
 func scrape() {
-	c := colly.NewCollector()
-	scraper := scraper.ReadNovelScraper{}
-	if partialOpt.endChapter > 1 {
-		scraper.ScrapPartialNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath),
-			partialOpt.startChapter, partialOpt.endChapter)
-	} else {
-		scraper.ScrapeNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath))
-	}
+	// c := colly.NewCollector()
+	// scraper := scraper.ReadNovelScraper{}
+	// if partialOpt.endChapter > 1 {
+	// 	scraper.ScrapPartialNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath),
+	// 		partialOpt.startChapter, partialOpt.endChapter)
+	// } else {
+	// 	scraper.ScrapeNovel(c, rootOpt.novelName, fmt.Sprintf("%s/raw", rootOpt.outputPath))
+	// }
 }
 
 func convert() {

@@ -27,7 +27,7 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData NovelChapte
 
 	exportName := fmt.Sprintf("%04d.json", novelChapterData.Chapter)
 	fmt.Printf("Export %s/%s\n", novelName, exportName)
-	io.awsClient.UploadFile(novelName, exportName, content)
+	io.awsClient.UploadFile(fmt.Sprintf("%s/raw", novelName), exportName, content)
 	return nil
 }
 
@@ -39,13 +39,13 @@ func (io S3IO) ExportMetaData(novelName string, novelMetaData NovelMetaData) err
 		return err
 	}
 	fmt.Printf("Export meta data of %s at path %s/meta_data.json\n", novelMetaData.Title, novelName)
-	io.awsClient.UploadFile(novelName, "meta_data.json", content)
+	io.awsClient.UploadFile(fmt.Sprintf("%s/raw", novelName), "meta_data.json", content)
 	return nil
 }
 
 // ImportMetaData read novel meta data from disk
 func (io S3IO) ImportMetaData(novelName string, novelMetaData *NovelMetaData) error {
-	content, err := io.awsClient.DownLoadFile(novelName, "meta_data.json")
+	content, err := io.awsClient.DownLoadFile(fmt.Sprintf("%s/raw", novelName), "meta_data.json")
 	if err != nil {
 		return fmt.Errorf("failed to get meta_data of novel %s", novelName)
 	}
@@ -77,8 +77,6 @@ func (io S3IO) NumberOfChapter(_ string) (int, error) {
 
 // MataDataNotExist check if meta data are already exported
 func (io S3IO) MataDataNotExist() bool {
-	return true
-
 	// directoryPath := fmt.Sprintf("%s", path)
 	// if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 	// 	if os.Mkdir(directoryPath, os.ModePerm) != nil {
@@ -88,4 +86,5 @@ func (io S3IO) MataDataNotExist() bool {
 
 	// _, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
 	// return os.IsNotExist(err)
+	return true
 }
