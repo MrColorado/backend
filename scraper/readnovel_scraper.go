@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,12 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.N
 
 	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
 		splittedString := strings.Split(e.ChildAttr("a", "title"), " ")
-		novelMetaData.NbChapter, _ = strconv.Atoi(splittedString[1])
+		nbChapter, err := strconv.Atoi(splittedString[1])
+		if err != nil {
+			novelMetaData.NbChapter = -1
+		} else {
+			novelMetaData.NbChapter = nbChapter
+		}
 	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
@@ -92,19 +98,28 @@ func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.IO) Read
 	}
 }
 
-// ScrapeNovel get each chater of a specific novel
+// ScrapeNovel get each chapter of a specific novel
 func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
-	var metaData utils.NovelMetaData
-	err := scraper.io.ImportMetaData(novelName, &metaData)
-	if err != nil || metaData.Title == "" {
-		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &metaData)
-		scraper.io.ExportMetaData(novelName, metaData)
-	}
-	scraper.ScrapPartialNovel(novelName, 1, metaData.NbChapter)
+	scraper.ScrapeNovelStart(novelName, 1)
 }
 
-// ScrapPartialNovel get specified chapter of a novel
-func (scraper ReadNovelScraper) ScrapPartialNovel(novelName string, startChapter int, endChapter int) {
+// ScrapeNovelStart get chapter of a specific novel starting a defined chapter
+func (scraper ReadNovelScraper) ScrapeNovelStart(novelName string, startChapter int) {
+	var metaData utils.NovelMetaData
+	err := scraper.io.ImportMetaData(novelName, &metaData)
+	if err != nil || metaData.Title == "" {
+		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &metaData)
+		scraper.io.ExportMetaData(novelName, metaData)
+	}
+	scraper.ScrapeNovelStartEnd(novelName, startChapter, metaData.NbChapter)
+}
+
+// ScrapeNovelStartEnd get chapter of specied novel between range
+func (scraper ReadNovelScraper) ScrapeNovelStartEnd(novelName string, startChapter int, endChapter int) {
+	if endChapter == -1 {
+		endChapter = math.MaxInt
+	}
+
 	var metaData utils.NovelMetaData
 	err := scraper.io.ImportMetaData(novelName, &metaData)
 	if err != nil || metaData.Title == "" {
@@ -112,20 +127,17 @@ func (scraper ReadNovelScraper) ScrapPartialNovel(novelName string, startChapter
 		scraper.io.ExportMetaData(novelName, metaData)
 	}
 
-	url := metaData.NextURL
-	if url == "" {
-		url = metaData.FirstChapterURL
-	}
-
-	for ; startChapter <= endChapter && strings.Compare(url, "") != 0; startChapter++ {
+	url := metaData.FirstChapterURL
+	for i := 1; i <= endChapter && strings.Compare(url, "") != 0; i++ {
 		chapterData := utils.NovelChapterData{
-			Chapter: startChapter,
+			Chapter: i,
 		}
 		url = scraper.scrapPage(url, &chapterData)
 		metaData.NextURL = url
 
-		scraper.io.ExportNovelChapter(novelName, chapterData)
-		scraper.io.ExportMetaData(novelName, metaData)
-		// scraper.collector = colly.NewCollector()
+		if i >= startChapter {
+			scraper.io.ExportNovelChapter(novelName, chapterData)
+			scraper.io.ExportMetaData(novelName, metaData)
+		}
 	}
 }

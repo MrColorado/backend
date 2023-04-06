@@ -1,112 +1,135 @@
 package utils
 
-// import (
-// 	"encoding/json"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"os"
-// )
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+)
 
-// type DiskIO struct {
-// }
+type DiskIO struct {
+	outputPath string
+}
 
-// func NewDiskIO() *DiskIO {
-// 	return &DiskIO{}
-// }
+func NewDiskIO(outputPath string) DiskIO {
+	return DiskIO{
+		outputPath: outputPath,
+	}
+}
 
-// // ExportNovelChapter write novel chapter on disk
-// func (io *DiskIO) ExportNovelChapter(path string, novelName string, novelChapterData NovelChapterData) {
-// 	directoryPath := fmt.Sprintf("%s/%s", path, novelName)
-// 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-// 		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-// 			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-// 		}
-// 	}
-// 	j, err := json.Marshal(novelChapterData)
-// 	if err != nil {
-// 		fmt.Printf("Failed to marshalize chapter %d of novel %s\n", novelChapterData.Chapter, novelName)
-// 		return
-// 	}
-// 	fmt.Printf("Export %s/%04d.json\n", directoryPath, novelChapterData.Chapter)
-// 	ioutil.WriteFile(fmt.Sprintf("%s/%04d.json", directoryPath, novelChapterData.Chapter), j, os.ModePerm)
-// }
+// ExportNovelChapter write novel chapter on disk
+func (io DiskIO) ExportNovelChapter(novelName string, chapterData NovelChapterData) error {
+	directoryPath := fmt.Sprintf("%s/%s/raw", io.outputPath, novelName)
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		err = os.Mkdir(directoryPath, os.ModePerm)
+		if err != nil {
+			fmt.Println(err.Error())
+			return fmt.Errorf("failed to create directory : %s", directoryPath)
+		}
+	}
+	j, err := json.Marshal(chapterData)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshalize chapter %d of novel %s", chapterData.Chapter, novelName)
+	}
+	fmt.Printf("Export %s/%04d.json\n", directoryPath, chapterData.Chapter)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%04d.json", directoryPath, chapterData.Chapter), j, os.ModePerm)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export chapter %d of novel %s", chapterData.Chapter, novelName)
+	}
+	return nil
+}
 
-// // ExportMetaData write novel meta data on disk
-// func (io *DiskIO) ExportMetaData(path string, novelName string, novelMetaData NovelMetaData) {
-// 	directoryPath := fmt.Sprintf("%s/%s", path, novelName)
-// 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-// 		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-// 			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-// 		}
-// 	}
-// 	j, err := json.Marshal(novelMetaData)
-// 	if err != nil {
-// 		fmt.Printf("Failed to marshalize meta data of novel %s\n", novelMetaData.Title)
-// 		return
-// 	}
-// 	fmt.Printf("Export meta data of %s at path %s/meta_data.json\n", novelMetaData.Title, directoryPath)
-// 	ioutil.WriteFile(fmt.Sprintf("%s/meta_data.json", directoryPath), j, os.ModePerm)
-// }
+// ExportMetaData write novel meta data on disk
+func (io DiskIO) ExportMetaData(novelName string, novelMetaData NovelMetaData) error {
+	directoryPath := fmt.Sprintf("%s/%s", io.outputPath, novelName)
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		err = os.MkdirAll(directoryPath, os.ModePerm)
+		if err != nil {
+			fmt.Println(err.Error())
+			return fmt.Errorf("failed to create directory : %s", directoryPath)
+		}
+	}
+	j, err := json.Marshal(novelMetaData)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshalize meta data of novel %s", novelMetaData.Title)
+	}
+	fmt.Printf("Export meta data of novel %s at path %s/meta_data.json\n", novelMetaData.Title, directoryPath)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/meta_data.json", directoryPath), j, os.ModePerm)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export meta data of novel %s", novelName)
+	}
+	return nil
+}
 
-// // ImportNovel read novel chapter from disk
-// func (io *DiskIO) ImportNovel(path string) (NovelChapterData, error) {
-// 	content, err := ioutil.ReadFile(path)
+// ImportNovelChapter read novel chapter from disk
+func (io DiskIO) ImportNovelChapter(novelName string, chapterData *NovelChapterData) error {
+	directoryPath := fmt.Sprintf("%s/%s/raw", io.outputPath, novelName)
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		err = os.MkdirAll(directoryPath, os.ModePerm)
+		if err != nil {
+			fmt.Println(err.Error())
+			return fmt.Errorf("failed to create directory : %s", directoryPath)
+		}
+	}
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%04d.json", directoryPath, chapterData.Chapter))
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to get chapter %d of novel %s", chapterData.Chapter, novelName)
+	}
 
-// 	if err != nil {
-// 		return NovelChapterData{}, fmt.Errorf("Failed to readFile %s", path)
-// 	}
+	if json.Unmarshal(content, &chapterData) != nil {
+		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
+	}
 
-// 	nodelData := NovelChapterData{}
-// 	if json.Unmarshal(content, &nodelData) != nil {
-// 		return NovelChapterData{}, fmt.Errorf("Failed to unmarshal %s", path)
-// 	}
+	return nil
+}
 
-// 	return nodelData, nil
-// }
+// ImportMetaData read novel meta data from disk
+func (io DiskIO) ImportMetaData(novelName string, novelMetaData *NovelMetaData) error {
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/meta_data.json", io.outputPath, novelName))
 
-// // ImportMetaData read novel meta data from disk
-// func (io *DiskIO) ImportMetaData(path string, novelName string) (NovelMetaData, error) {
-// 	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/meta_data.json", path, novelName))
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to get meta_data of novel %s", novelName)
+	}
 
-// 	if err != nil {
-// 		return NovelMetaData{}, fmt.Errorf("Failed to readFile %s/meta_data.json", path)
-// 	}
+	if json.Unmarshal(content, &novelMetaData) != nil {
+		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
+	}
 
-// 	novelMetaData := NovelMetaData{}
-// 	if json.Unmarshal(content, &novelMetaData) != nil {
-// 		return NovelMetaData{}, fmt.Errorf("Failed to unmarshal %s", path)
-// 	}
+	return nil
+}
 
-// 	fmt.Printf("Import meta data from %s/%s/meta_data.json\n", path, novelName)
-// 	return novelMetaData, nil
-// }
+// NumberOfChapter return the chapter number of a novel
+func (io DiskIO) NumberOfChapter(novelName string) (int, error) {
+	files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s/raw", io.outputPath, novelName))
+	if err != nil {
+		fmt.Println(err.Error())
+		return 0, fmt.Errorf("failed to list files of novel %s", novelName)
+	}
+	return len(files), nil
+}
 
-// // NumberOfChapter return the chapter number of a novel
-// func (io *DiskIO) NumberOfChapter(path string, novelName string) int {
-// 	files, err := ioutil.ReadDir(fmt.Sprintf("%s/%s", path, novelName))
-
-// 	if err != nil {
-// 		fmt.Printf("Failed to readDir %s\n", path)
-// 		return 0
-// 	}
-// 	size := len(files)
-// 	for _, file := range files {
-// 		if file.Name() == "meta_data.json" || file.Name() == "cover" {
-// 			size--
-// 		}
-// 	}
-// 	return size
-// }
-
-// // MataDataNotExist check if meta data are already exported
-// func (io *DiskIO) MataDataNotExist(path string) bool {
-// 	directoryPath := fmt.Sprintf("%s", path)
-// 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-// 		if os.Mkdir(directoryPath, os.ModePerm) != nil {
-// 			fmt.Printf("Failed to create directory : %s\n", directoryPath)
-// 		}
-// 	}
-
-// 	_, err := os.Stat(fmt.Sprintf("%s/meta_data.json", path))
-// 	return os.IsNotExist(err)
-// }
+// ExportBook return the chapter number of a novel
+func (io DiskIO) ExportBook(novelName string, bookName string, content []byte) error {
+	directoryPath := fmt.Sprintf("%s/%s/epub", io.outputPath, novelName)
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		err = os.MkdirAll(directoryPath, os.ModePerm)
+		if err != nil {
+			fmt.Println(err.Error())
+			return fmt.Errorf("failed to create directory : %s", directoryPath)
+		}
+	}
+	exportName := fmt.Sprintf("%s.epub", bookName)
+	fmt.Printf("Export book %s of novel %s\n", exportName, novelName)
+	err := ioutil.WriteFile(fmt.Sprintf("%s/%s", directoryPath, exportName), content, os.ModePerm)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export book %s of novel %s", exportName, novelName)
+	}
+	return nil
+}

@@ -77,17 +77,27 @@ func (client *AwsClient) DownLoadFile(filePath string, fileName string) ([]byte,
 }
 
 func (client *AwsClient) ListFiles(filePath string) ([]string, error) {
-	result, err := client.s3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-	})
-
-	if err != nil {
-		log.Printf("Couldn't list objects in bucket %v. Here's why: %v\n", bucketName, err)
-		return []string{}, nil
-	}
 	var filesName []string
-	for _, data := range result.Contents {
-		filesName = append(filesName, *data.Key)
+	var continuationToken *string
+
+	for {
+		resp, err := client.s3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+			Bucket:            aws.String(bucketName),
+			Prefix:            aws.String(filePath),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			log.Printf("Couldn't list objects in bucket %v. Here's why: %v\n", bucketName, err)
+			return []string{}, nil
+		}
+		for _, data := range resp.Contents {
+			filesName = append(filesName, *data.Key)
+		}
+		if !resp.IsTruncated {
+			break
+		}
+		continuationToken = resp.NextContinuationToken
 	}
+
 	return filesName, nil
 }

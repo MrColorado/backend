@@ -115,18 +115,22 @@ func (converter EpubConverter) ConvertNovel(novelName string) error {
 		return fmt.Errorf("failed to get number of chapter for novel %s", novelName)
 	}
 
+	rest := 0
+	if nbChapter%100 != 0 {
+		rest += 1
+	}
 	nbBook := nbChapter / 100
-	fmt.Printf("for novel %s there are %d chapter and so %d books\n", novelName, nbChapter, nbBook+nbChapter%100)
+	fmt.Printf("for novel %s there are %d chapter and so %d books\n", novelName, nbChapter, nbBook+rest)
 
 	for i := 0; i < nbBook; i++ {
-		err := converter.convertToNovel(novelName, i*100+1, (i+1)*100)
+		err := converter.convertToNovel(novelName, (i*100)+1, (i+1)*100)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
 	}
 
-	if nbChapter%100 != 0 {
-		err := converter.convertToNovel(novelName, nbBook*100+1, nbChapter)
+	if rest != 0 {
+		err := converter.convertToNovel(novelName, (nbBook*100)+1, nbChapter)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
