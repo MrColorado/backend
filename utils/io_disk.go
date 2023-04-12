@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/MrColorado/epubScraper/models"
 )
 
 type DiskIO struct {
@@ -18,7 +20,7 @@ func NewDiskIO(outputPath string) DiskIO {
 }
 
 // ExportNovelChapter write novel chapter on disk
-func (io DiskIO) ExportNovelChapter(novelName string, chapterData NovelChapterData) error {
+func (io DiskIO) ExportNovelChapter(novelName string, chapterData models.NovelChapterData) error {
 	directoryPath := fmt.Sprintf("%s/%s/raw", io.outputPath, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		err = os.Mkdir(directoryPath, os.ModePerm)
@@ -42,7 +44,7 @@ func (io DiskIO) ExportNovelChapter(novelName string, chapterData NovelChapterDa
 }
 
 // ExportMetaData write novel meta data on disk
-func (io DiskIO) ExportMetaData(novelName string, novelMetaData NovelMetaData) error {
+func (io DiskIO) ExportMetaData(novelName string, data models.NovelMetaData) error {
 	directoryPath := fmt.Sprintf("%s/%s", io.outputPath, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		err = os.MkdirAll(directoryPath, os.ModePerm)
@@ -51,12 +53,12 @@ func (io DiskIO) ExportMetaData(novelName string, novelMetaData NovelMetaData) e
 			return fmt.Errorf("failed to create directory : %s", directoryPath)
 		}
 	}
-	j, err := json.Marshal(novelMetaData)
+	j, err := json.Marshal(data)
 	if err != nil {
 		fmt.Println(err.Error())
-		return fmt.Errorf("failed to marshalize meta data of novel %s", novelMetaData.Title)
+		return fmt.Errorf("failed to marshalize meta data of novel %s", data.Title)
 	}
-	fmt.Printf("Export meta data of novel %s at path %s/meta_data.json\n", novelMetaData.Title, directoryPath)
+	fmt.Printf("Export meta data of novel %s at path %s/meta_data.json\n", data.Title, directoryPath)
 	err = ioutil.WriteFile(fmt.Sprintf("%s/meta_data.json", directoryPath), j, os.ModePerm)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -66,42 +68,44 @@ func (io DiskIO) ExportMetaData(novelName string, novelMetaData NovelMetaData) e
 }
 
 // ImportNovelChapter read novel chapter from disk
-func (io DiskIO) ImportNovelChapter(novelName string, chapterData *NovelChapterData) error {
+func (io DiskIO) ImportNovelChapter(novelName string, chapter int) (models.NovelChapterData, error) {
 	directoryPath := fmt.Sprintf("%s/%s/raw", io.outputPath, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		err = os.MkdirAll(directoryPath, os.ModePerm)
 		if err != nil {
 			fmt.Println(err.Error())
-			return fmt.Errorf("failed to create directory : %s", directoryPath)
+			return models.NovelChapterData{}, fmt.Errorf("failed to create directory : %s", directoryPath)
 		}
 	}
-	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%04d.json", directoryPath, chapterData.Chapter))
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%04d.json", directoryPath, chapter))
 	if err != nil {
 		fmt.Println(err.Error())
-		return fmt.Errorf("failed to get chapter %d of novel %s", chapterData.Chapter, novelName)
+		return models.NovelChapterData{}, fmt.Errorf("failed to get chapter %d of novel %s", chapter, novelName)
 	}
 
-	if json.Unmarshal(content, &chapterData) != nil {
-		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
+	var data models.NovelChapterData
+	if json.Unmarshal(content, &data) != nil {
+		return models.NovelChapterData{}, fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
 	}
 
-	return nil
+	return data, nil
 }
 
 // ImportMetaData read novel meta data from disk
-func (io DiskIO) ImportMetaData(novelName string, novelMetaData *NovelMetaData) error {
+func (io DiskIO) ImportMetaData(novelName string) (models.NovelMetaData, error) {
 	content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/meta_data.json", io.outputPath, novelName))
 
 	if err != nil {
 		fmt.Println(err)
-		return fmt.Errorf("failed to get meta_data of novel %s", novelName)
+		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %s", novelName)
 	}
 
-	if json.Unmarshal(content, &novelMetaData) != nil {
-		return fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
+	var data models.NovelMetaData
+	if json.Unmarshal(content, &data) != nil {
+		return models.NovelMetaData{}, fmt.Errorf("failed to unmarshal metadata of novel %s", novelName)
 	}
 
-	return nil
+	return data, nil
 }
 
 // NumberOfChapter return the chapter number of a novel

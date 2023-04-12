@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/MrColorado/epubScraper/configuration"
+	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/utils"
 
 	"github.com/gocolly/colly/v2"
@@ -21,7 +22,7 @@ type ReadNovelScraper struct {
 	io        utils.IO
 }
 
-func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.NovelMetaData) {
+func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
 	fmt.Printf("Scrape metaData : %s\n", url)
 
 	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
@@ -69,7 +70,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *utils.N
 	scraper.collector.Visit(url)
 }
 
-func (scraper ReadNovelScraper) scrapPage(url string, chapterData *utils.NovelChapterData) string {
+func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
 	fmt.Printf("Scrape : %s\n", url)
 	nextURL := ""
 
@@ -105,13 +106,12 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 
 // ScrapeNovelStart get chapter of a specific novel starting a defined chapter
 func (scraper ReadNovelScraper) ScrapeNovelStart(novelName string, startChapter int) {
-	var metaData utils.NovelMetaData
-	err := scraper.io.ImportMetaData(novelName, &metaData)
-	if err != nil || metaData.Title == "" {
-		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &metaData)
-		scraper.io.ExportMetaData(novelName, metaData)
+	data, err := scraper.io.ImportMetaData(novelName)
+	if err != nil || data.Title == "" {
+		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &data)
+		scraper.io.ExportMetaData(novelName, data)
 	}
-	scraper.ScrapeNovelStartEnd(novelName, startChapter, metaData.NbChapter)
+	scraper.ScrapeNovelStartEnd(novelName, startChapter, data.NbChapter)
 }
 
 // ScrapeNovelStartEnd get chapter of specied novel between range
@@ -120,24 +120,23 @@ func (scraper ReadNovelScraper) ScrapeNovelStartEnd(novelName string, startChapt
 		endChapter = math.MaxInt
 	}
 
-	var metaData utils.NovelMetaData
-	err := scraper.io.ImportMetaData(novelName, &metaData)
-	if err != nil || metaData.Title == "" {
-		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &metaData)
-		scraper.io.ExportMetaData(novelName, metaData)
+	data, err := scraper.io.ImportMetaData(novelName)
+	if err != nil || data.Title == "" {
+		scraper.scrapMetaData(fmt.Sprintf("%s/%s.html", readNovelURL, novelName), &data)
+		scraper.io.ExportMetaData(novelName, data)
 	}
 
-	url := metaData.FirstChapterURL
+	url := data.FirstChapterURL
 	for i := 1; i <= endChapter && strings.Compare(url, "") != 0; i++ {
-		chapterData := utils.NovelChapterData{
+		chapterData := models.NovelChapterData{
 			Chapter: i,
 		}
 		url = scraper.scrapPage(url, &chapterData)
-		metaData.NextURL = url
+		data.NextURL = url
 
 		if i >= startChapter {
 			scraper.io.ExportNovelChapter(novelName, chapterData)
-			scraper.io.ExportMetaData(novelName, metaData)
+			scraper.io.ExportMetaData(novelName, data)
 		}
 	}
 }

@@ -18,4 +18,4 @@ volumes
 .env
 epubScraper
 .vscode
-
+gen_models

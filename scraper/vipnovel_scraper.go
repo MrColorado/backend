@@ -19,8 +19,8 @@ package scraper
 // }
 
 // // ScrapPage get the content of specific novel chapter
-// func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (utils.NovelChapterData, string) {
-// 	novelData := utils.NovelChapterData{}
+// func (scraper *VipNovelScraper) scrapPage(c *colly.Collector, url string) (models.NovelChapterData, string) {
+// 	novelData := models.NovelChapterData{}
 // 	nextPageURL := ""
 
 // 	c.OnHTML(".next_page", func(e *colly.HTMLElement) {
@@ -40,7 +40,7 @@ package scraper
 
 // // ScrapeNovel get each chater of a specific novel
 // func (scraper *VipNovelScraper) ScrapeNovel(c *colly.Collector, novelName string) {
-// 	novels := []utils.NovelChapterData{}
+// 	novels := []models.NovelChapterData{}
 
 // 	for novelName != "" {
 // 		fmt.Println(novelName)

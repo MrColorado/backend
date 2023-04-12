@@ -1,20 +1,28 @@
 package main
 
-import grpcwrapper "github.com/MrColorado/epubScraper/grpcWrapper"
+import (
+	"github.com/MrColorado/epubScraper/configuration"
+	"github.com/MrColorado/epubScraper/converter"
+	"github.com/MrColorado/epubScraper/dataWrapper"
+	"github.com/MrColorado/epubScraper/grpcWrapper"
+	"github.com/MrColorado/epubScraper/scraper"
+	"github.com/MrColorado/epubScraper/utils"
+)
 
 func main() {
-	// config := configuration.GetConfig()
-	// client := awsWrapper.NewClient(config.AwsConfig)
-	// var io utils.IO = utils.NewS3IO(client)
-	// // var io utils.IO = utils.NewDiskIO("volumes/disk")
+	config := configuration.GetConfig()
+	awsClient := dataWrapper.NewAwsClient(config.AwsConfig)
+	postgreClient := dataWrapper.NewPostgresClient(config.PostgresConfig)
+	var io utils.IO = utils.NewS3IO(awsClient, postgreClient)
 
 	// // Scraper
-	// var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
-	// scraper.ScrapeNovel("rebirth-of-the-thief-who-roamed-the-world")
+	var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
+	scraper.ScrapeNovel("rebirth-of-the-thief-who-roamed-the-world")
 
 	// // Converter
-	// var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
-	// conv.ConvertNovel("rebirth-of-the-thief-who-roamed-the-world")
+	var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
+	conv.ConvertNovel("rebirth-of-the-thief-who-roamed-the-world")
 
-	grpcwrapper.Test()
+	server := grpcWrapper.NewSever(io)
+	server.Run()
 }

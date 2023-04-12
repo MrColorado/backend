@@ -21,16 +21,15 @@ func NewEpubConverter(_ configuration.ConverterConfigStruct, io utils.IO) EpubCo
 }
 
 func (converter EpubConverter) convertMetaData(e *epub.Epub, novelName string) error {
-	var metaData utils.NovelMetaData
-	err := converter.io.ImportMetaData(novelName, &metaData)
+	data, err := converter.io.ImportMetaData(novelName)
 	if err != nil {
 		println(err.Error())
 		return fmt.Errorf("failed to import metaData for novel %s", novelName)
 	}
 
-	e.SetAuthor(metaData.Author)
+	e.SetAuthor(data.Author)
 	summary := ""
-	for _, paragraph := range metaData.Summary {
+	for _, paragraph := range data.Summary {
 		summary += fmt.Sprintf("<p>%s</p>", paragraph)
 	}
 	e.SetDescription(summary)
@@ -44,10 +43,8 @@ func (converter EpubConverter) convertToNovel(novelName string, startChapter int
 	converter.convertMetaData(e, novelName)
 
 	for i := startChapter; i <= endChapter; i++ {
-		chapterData := utils.NovelChapterData{
-			Chapter: i,
-		}
-		err := converter.io.ImportNovelChapter(novelName, &chapterData)
+		chapterData, err := converter.io.ImportNovelChapter(novelName, i)
+		chapterData.Chapter = 1
 		if err != nil {
 			fmt.Println(err.Error())
 			continue

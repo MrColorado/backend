@@ -1,4 +1,4 @@
-package awsWrapper
+package dataWrapper
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ type AwsClient struct {
 	s3Client *s3.Client
 }
 
-func NewClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
+func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:       "aws",

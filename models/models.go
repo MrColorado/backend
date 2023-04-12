@@ -1,4 +1,4 @@
-package utils
+package models
 
 // NovelChapterData contain data of a chapter
 type NovelChapterData struct {
@@ -8,6 +8,7 @@ type NovelChapterData struct {
 
 // NovelMetaData contain data on the novel
 type NovelMetaData struct {
+	ID              int
 	NbChapter       int
 	Title           string
 	Author          string

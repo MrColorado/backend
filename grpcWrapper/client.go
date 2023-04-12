@@ -1,40 +1,55 @@
-package grpcwrapper
+package grpcWrapper
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net"
 
 	"github.com/MrColorado/epubScraper/novelpb"
+	"github.com/MrColorado/epubScraper/utils"
 	"google.golang.org/grpc"
 )
 
-type server struct {
+type Server struct {
+	io utils.IO
+
 	novelpb.UnimplementedNovelServerServer
 }
 
-func (*server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
-	log.Println("Novel Service - Called GetNovel :", req.NovelName)
+func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
+	fmt.Println("Novel Service - Called GetNovel :", req.NovelName)
 
 	return &novelpb.GetNovelResponse{}, nil
 }
 
-func Test() {
-	log.Println("Running Offer Service")
+func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelRequest) (*novelpb.ListNovelResponse, error) {
+	fmt.Println("Novel Service - Called ListNovel")
+
+	return &novelpb.ListNovelResponse{}, nil
+}
+
+func NewSever(io utils.IO) *Server {
+	return &Server{
+		io: io,
+	}
+}
+
+func (server *Server) Run() {
+	fmt.Println("Running novel Service")
 
 	lis, err := net.Listen("tcp", "0.0.0.0:55051")
 	if err != nil {
-		log.Println("Offer Service - ERROR:", err.Error())
+		fmt.Println("Novel Service - ERROR:", err.Error())
 	}
 
 	s := grpc.NewServer()
-	novelpb.RegisterNovelServerServer(s, &server{})
+	novelpb.RegisterNovelServerServer(s, server)
 
-	log.Printf("Server started at %v", lis.Addr().String())
+	fmt.Printf("Server started at %v", lis.Addr().String())
 
 	err = s.Serve(lis)
 	if err != nil {
-		log.Println("Offer Service - ERROR:", err.Error())
+		fmt.Println("Novel Service - ERROR:", err.Error())
 	}
 
 }
