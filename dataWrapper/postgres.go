@@ -33,21 +33,23 @@ func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClien
 	}
 }
 
-func (client *PostgresClient) InsertOrUpdate(data models.NovelMetaData) error {
+func (client *PostgresClient) InsertOrUpdate(data *models.NovelMetaData) error {
 	novel := gen_models.Novel{
-		ID:           data.ID,
-		Title:        data.Title,
-		NBChapter:    data.NbChapter,
-		FirstChapter: data.FirstChapterURL,
-		Author:       data.Author,
-		Description:  strings.Join(data.Summary, "\n"),
+		ID:             data.ID,
+		Title:          data.Title,
+		NBChapter:      data.NbChapter,
+		FirstChapter:   data.FirstChapterURL,
+		Author:         data.Author,
+		Description:    strings.Join(data.Summary, "\n"),
+		CurrentChapter: data.CurrentChapter,
+		NextURL:        data.NextURL,
 	}
-
-	err := novel.Upsert(context.TODO(), client.db, true, []string{"id"}, boil.Infer(), boil.Infer())
+	err := novel.Upsert(context.TODO(), client.db, true, []string{"id"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
+	data.ID = novel.ID
 	return nil
 }
 
@@ -65,6 +67,8 @@ func (client *PostgresClient) GetId(id int) (models.NovelMetaData, error) {
 		NbChapter:       novel.NBChapter,
 		FirstChapterURL: novel.FirstChapter,
 		Summary:         []string{novel.Description},
+		CurrentChapter:  novel.CurrentChapter,
+		NextURL:         novel.NextURL,
 	}, nil
 }
 
@@ -82,6 +86,8 @@ func (client *PostgresClient) GetTitle(title string) (models.NovelMetaData, erro
 		NbChapter:       novel.NBChapter,
 		FirstChapterURL: novel.FirstChapter,
 		Summary:         []string{novel.Description},
+		CurrentChapter:  novel.CurrentChapter,
+		NextURL:         novel.NextURL,
 	}, nil
 }
 
@@ -101,6 +107,8 @@ func (client *PostgresClient) List() ([]models.NovelMetaData, error) {
 			NbChapter:       novel.NBChapter,
 			FirstChapterURL: novel.FirstChapter,
 			Summary:         []string{novel.Description},
+			CurrentChapter:  novel.CurrentChapter,
+			NextURL:         novel.NextURL,
 		})
 	}
 	return res, nil

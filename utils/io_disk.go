@@ -44,7 +44,7 @@ func (io DiskIO) ExportNovelChapter(novelName string, chapterData models.NovelCh
 }
 
 // ExportMetaData write novel meta data on disk
-func (io DiskIO) ExportMetaData(novelName string, data models.NovelMetaData) error {
+func (io DiskIO) ExportMetaData(novelName string, data *models.NovelMetaData) error {
 	directoryPath := fmt.Sprintf("%s/%s", io.outputPath, novelName)
 	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
 		err = os.MkdirAll(directoryPath, os.ModePerm)

@@ -4,7 +4,6 @@ import (
 	"github.com/MrColorado/epubScraper/configuration"
 	"github.com/MrColorado/epubScraper/converter"
 	"github.com/MrColorado/epubScraper/dataWrapper"
-	"github.com/MrColorado/epubScraper/grpcWrapper"
 	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 )
@@ -17,12 +16,12 @@ func main() {
 
 	// // Scraper
 	var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
-	scraper.ScrapeNovel("rebirth-of-the-thief-who-roamed-the-world")
+	scraper.ScrapeNovel("the mech touch")
 
 	// // Converter
 	var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
-	conv.ConvertNovel("rebirth-of-the-thief-who-roamed-the-world")
+	conv.ConvertNovel("the mech touch")
 
-	server := grpcWrapper.NewSever(io)
-	server.Run()
+	// server := grpcWrapper.NewSever(io)
+	// server.Run()
 }

@@ -16,4 +16,5 @@ type NovelMetaData struct {
 	ImagePath       string
 	FirstChapterURL string
 	NextURL         string
+	CurrentChapter  int
 }

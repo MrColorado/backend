@@ -26,7 +26,9 @@ CREATE TABLE public.novel (
     author character varying NOT NULL,
     description character varying NOT NULL,
     nb_chapter integer NOT NULL,
-    first_chapter character varying NOT NULL
+    first_chapter character varying NOT NULL,
+    current_chapter integer NOT NULL,
+    next_url character varying NOT NULL
 );
 ALTER TABLE public.novel OWNER TO root_user;
 --
