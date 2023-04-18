@@ -14,8 +14,12 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# Generated files 
+gen_models
+*.pb.go
+
+
+epubScraper
 volumes
 .env
-epubScraper
 .vscode
-gen_models

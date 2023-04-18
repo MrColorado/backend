@@ -55,7 +55,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
-		novelMetaData.Title = e.Text
+		novelMetaData.Title = strings.TrimSpace(strings.ToLower(e.Text))
 	})
 
 	scraper.collector.OnHTML(".btn-read-now", func(e *colly.HTMLElement) {
@@ -125,14 +125,16 @@ func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.IO) Read
 func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter int) {
 	data, _ := scraper.io.ImportMetaData(novelName)
 
-	if data.ID == 0 {
+	if data.Title == "" {
 		novelUrl := scraper.findNovelUrl(novelName)
 		scraper.scrapMetaData(novelUrl, &data)
 		if data.Title == "" {
 			fmt.Printf("Failed to get page of novel %s\n", novelName)
 			return
 		}
-		scraper.io.ExportMetaData(data.Title, &data)
+		if scraper.io.ExportMetaData(data.Title, data) != nil {
+			return
+		}
 	}
 
 	i := 1
@@ -151,15 +153,20 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		data.NextURL = url
 		data.CurrentChapter += 1
 
-		scraper.io.ExportNovelChapter(novelName, chapterData)
-		scraper.io.ExportMetaData(novelName, &data)
+		if scraper.io.ExportNovelChapter(data.Title, chapterData) != nil {
+			return
+		}
+		if scraper.io.ExportMetaData(data.Title, data) != nil {
+			return
+		}
 	}
 }
 
 // ScrapeNovel get each chapter of a specific novel
 func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
+	novelName = strings.TrimSpace(strings.ToLower(novelName))
 	data, _ := scraper.io.ImportMetaData(novelName)
-	if data.ID == 0 {
+	if data.Title == "" {
 		scraper.scrapeNovelStart(novelName, 1)
 	} else {
 		scraper.scrapeNovelStart(novelName, data.CurrentChapter)

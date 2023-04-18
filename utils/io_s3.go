@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/MrColorado/epubScraper/dataWrapper"
 	"github.com/MrColorado/epubScraper/models"
@@ -40,9 +39,7 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData models.Nove
 }
 
 // ExportMetaData write novel meta data on s3
-func (io S3IO) ExportMetaData(novelName string, data *models.NovelMetaData) error {
-	data.Title = strings.ToLower(data.Title)
-
+func (io S3IO) ExportMetaData(novelName string, data models.NovelMetaData) error {
 	err := io.dbClient.InsertOrUpdate(data)
 	if err != nil {
 		fmt.Println(err.Error())

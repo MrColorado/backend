@@ -21,7 +21,6 @@ SET default_table_access_method = heap;
 --
 
 CREATE TABLE public.novel (
-    id integer NOT NULL,
     title character varying NOT NULL,
     author character varying NOT NULL,
     description character varying NOT NULL,
@@ -32,34 +31,10 @@ CREATE TABLE public.novel (
 );
 ALTER TABLE public.novel OWNER TO root_user;
 --
--- Name: novel_id_seq; Type: SEQUENCE; Schema: public; Owner: root_user
---
-
-CREATE SEQUENCE public.novel_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER TABLE public.novel_id_seq OWNER TO root_user;
---
--- Name: novel_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root_user
---
-
-ALTER SEQUENCE public.novel_id_seq OWNED BY public.novel.id;
---
--- Name: novel id; Type: DEFAULT; Schema: public; Owner: root_user
+-- Name: novel novel_pk; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
 
 ALTER TABLE ONLY public.novel
-ALTER COLUMN id
-SET DEFAULT nextval('public.novel_id_seq'::regclass);
---
--- Name: novel novel_pl; Type: CONSTRAINT; Schema: public; Owner: root_user
---
-
-ALTER TABLE ONLY public.novel
-ADD CONSTRAINT novel_pl PRIMARY KEY (id);
---
--- Name: novel novel_un; Type: CONSTRAINT; Schema: public; Owner: root_user
---
-
-ALTER TABLE ONLY public.novel
-ADD CONSTRAINT novel_un UNIQUE (title);
+ADD CONSTRAINT novel_pk PRIMARY KEY (title);
 --
 -- PostgreSQL database dump complete

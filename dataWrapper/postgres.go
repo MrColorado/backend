@@ -33,9 +33,8 @@ func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClien
 	}
 }
 
-func (client *PostgresClient) InsertOrUpdate(data *models.NovelMetaData) error {
+func (client *PostgresClient) InsertOrUpdate(data models.NovelMetaData) error {
 	novel := gen_models.Novel{
-		ID:             data.ID,
 		Title:          data.Title,
 		NBChapter:      data.NbChapter,
 		FirstChapter:   data.FirstChapterURL,
@@ -44,32 +43,12 @@ func (client *PostgresClient) InsertOrUpdate(data *models.NovelMetaData) error {
 		CurrentChapter: data.CurrentChapter,
 		NextURL:        data.NextURL,
 	}
-	err := novel.Upsert(context.TODO(), client.db, true, []string{"id"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
+	err := novel.Upsert(context.TODO(), client.db, true, []string{"title"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
-	data.ID = novel.ID
 	return nil
-}
-
-func (client *PostgresClient) GetId(id int) (models.NovelMetaData, error) {
-	novel, err := gen_models.Novels(gen_models.NovelWhere.ID.EQ(id)).One(context.TODO(), client.db)
-	if err != nil {
-		fmt.Println(err)
-		return models.NovelMetaData{}, fmt.Errorf("failed to get novel with ID %d", id)
-	}
-
-	return models.NovelMetaData{
-		ID:              novel.ID,
-		Title:           novel.Title,
-		Author:          novel.Author,
-		NbChapter:       novel.NBChapter,
-		FirstChapterURL: novel.FirstChapter,
-		Summary:         []string{novel.Description},
-		CurrentChapter:  novel.CurrentChapter,
-		NextURL:         novel.NextURL,
-	}, nil
 }
 
 func (client *PostgresClient) GetTitle(title string) (models.NovelMetaData, error) {
@@ -80,7 +59,6 @@ func (client *PostgresClient) GetTitle(title string) (models.NovelMetaData, erro
 	}
 
 	return models.NovelMetaData{
-		ID:              novel.ID,
 		Title:           novel.Title,
 		Author:          novel.Author,
 		NbChapter:       novel.NBChapter,
@@ -101,7 +79,6 @@ func (client *PostgresClient) List() ([]models.NovelMetaData, error) {
 	res := []models.NovelMetaData{}
 	for _, novel := range novels {
 		res = append(res, models.NovelMetaData{
-			ID:              novel.ID,
 			Title:           novel.Title,
 			Author:          novel.Author,
 			NbChapter:       novel.NBChapter,

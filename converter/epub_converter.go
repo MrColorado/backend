@@ -38,7 +38,7 @@ func (converter EpubConverter) convertMetaData(e *epub.Epub, novelName string) e
 }
 
 func (converter EpubConverter) convertToNovel(novelName string, startChapter int, endChapter int) error {
-	fileName := fmt.Sprintf("%s-%d-%d", novelName, startChapter, endChapter)
+	fileName := fmt.Sprintf("%s-%04d-%04d", novelName, startChapter, endChapter)
 	e := epub.NewEpub(fileName)
 	converter.convertMetaData(e, novelName)
 
