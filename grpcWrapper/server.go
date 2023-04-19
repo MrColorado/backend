@@ -1,4 +1,4 @@
-//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb novelpb/novel.proto --experimental_allow_proto3_optional
+//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb novel.proto --experimental_allow_proto3_optional
 
 package grpcWrapper
 

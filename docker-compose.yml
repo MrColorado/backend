@@ -25,4 +25,11 @@ services:
     volumes:
       - ./volumes/postgres/:/var/lib/postgresql/data/
 
+  envoy:
+    image: envoy-v1
+    container_name: envoy
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+
 # dc exec database pg_dump -U $POSTGRES_USER novel_database --schema-only
