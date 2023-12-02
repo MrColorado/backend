@@ -1,4 +1,4 @@
-//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb novel.proto --experimental_allow_proto3_optional
+//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb novel.proto
 
 package grpcWrapper
 
@@ -42,6 +42,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 
 	data, err := server.io.ImportMetaData(formatName(req.GetTitle()))
 	if err != nil {
+		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 	return &novelpb.GetNovelResponse{
@@ -51,7 +52,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 			Author:      data.Author,
 			Chapter:     int64(data.NbChapter),
 		},
-	}, status.Error(codes.NotFound, "Novel was not found")
+	}, nil
 }
 
 func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelRequest) (*novelpb.ListNovelResponse, error) {
@@ -59,8 +60,10 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 	datas, err := server.io.ListBooks()
 	if err != nil {
+		fmt.Println(err.Error())
 		return &novelpb.ListNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
+	fmt.Printf("Book size %d\n", len(datas))
 
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
@@ -72,7 +75,7 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 		})
 	}
 
-	return &response, status.Error(codes.NotFound, "Not found")
+	return &response, nil
 }
 
 func (server *Server) RequestNovel(_ *novelpb.NovelDemandRequest, _ novelpb.NovelServer_RequestNovelServer) error {
@@ -90,7 +93,7 @@ func (server *Server) Run() {
 	s := grpc.NewServer()
 	novelpb.RegisterNovelServerServer(s, server)
 
-	fmt.Printf("Server started at %v", lis.Addr().String())
+	fmt.Printf("Server started at %v\n", lis.Addr().String())
 
 	err = s.Serve(lis)
 	if err != nil {

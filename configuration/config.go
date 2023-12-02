@@ -12,6 +12,7 @@ type PostgresConfigStruct struct {
 	PostgresUser     string
 	PostgresPassword string
 	PostgresDB       string
+	PostgresHost     string
 }
 
 type ScraperConfigStruct struct {
@@ -38,6 +39,7 @@ func GetConfig() Config {
 			PostgresUser:     os.Getenv("POSTGRES_USER"),
 			PostgresPassword: os.Getenv("POSTGRES_PASSWORD"),
 			PostgresDB:       os.Getenv("POSTGRES_DB"),
+			PostgresHost:     os.Getenv("POSTGRES_HOST"),
 		},
 	}
 	return config

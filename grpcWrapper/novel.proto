@@ -7,7 +7,6 @@ message NovelData {
     string description = 2;
     string author = 3;
     int64 chapter = 4;
-    optional bytes cover = 5;
 }
 
 message GetNovelRequest{
@@ -41,6 +40,6 @@ message NovelDemandeResponse {
 
 service NovelServer{
     rpc GetNovel(GetNovelRequest) returns (GetNovelResponse) {};
-    rpc listNovel(ListNovelRequest) returns (ListNovelResponse) {};
+    rpc ListNovel(ListNovelRequest) returns (ListNovelResponse) {};
     rpc RequestNovel(NovelDemandRequest) returns (stream NovelDemandeResponse) {};
 }

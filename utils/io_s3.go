@@ -96,6 +96,7 @@ func (io S3IO) ExportBook(novelName string, bookName string, content []byte) err
 }
 
 func (io S3IO) ListBooks() ([]models.NovelMetaData, error) {
+	fmt.Println("S3 list")
 	datas, err := io.dbClient.List()
 	if err != nil {
 		fmt.Println(err)

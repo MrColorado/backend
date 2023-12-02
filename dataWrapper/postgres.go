@@ -21,7 +21,10 @@ type PostgresClient struct {
 }
 
 func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClient {
-	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword))
+	connStr := fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost)
+	fmt.Println(connStr)
+	db, err := sql.Open("postgres", connStr)
+	fmt.Println("Success")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -70,6 +73,7 @@ func (client *PostgresClient) GetTitle(title string) (models.NovelMetaData, erro
 }
 
 func (client *PostgresClient) List() ([]models.NovelMetaData, error) {
+	fmt.Println("Postgres list")
 	novels, err := gen_models.Novels().All(context.TODO(), client.db)
 	if err != nil {
 		fmt.Println(err)
