@@ -21,6 +21,7 @@ SET default_table_access_method = heap;
 --
 
 CREATE TABLE public.novel (
+    id integer NOT NULL,
     title character varying NOT NULL,
     author character varying NOT NULL,
     description character varying NOT NULL,
@@ -29,6 +30,11 @@ CREATE TABLE public.novel (
     current_chapter integer NOT NULL,
     next_url character varying NOT NULL
 );
+--
+-- Name: novel_id_seq; Type: SEQUENCE; Schema: public; Owner: root_user
+--
+
+CREATE SEQUENCE public.novel_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
 ALTER TABLE public.novel OWNER TO root_user;
 --
 -- Name: novel novel_pk; Type: CONSTRAINT; Schema: public; Owner: root_user

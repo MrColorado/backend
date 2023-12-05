@@ -8,6 +8,7 @@ type NovelChapterData struct {
 
 // NovelMetaData contain data on the novel
 type NovelMetaData struct {
+	Id              int
 	NbChapter       int
 	Title           string
 	Author          string
