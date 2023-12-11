@@ -73,6 +73,16 @@ func (io S3IO) ImportMetaData(novelName string) (models.NovelMetaData, error) {
 	return data, nil
 }
 
+// ImportMetaData read novel meta data from s3
+func (io S3IO) ImportMetaDataById(novelId int) (models.NovelMetaData, error) {
+	data, err := io.dbClient.GetId(novelId)
+	if err != nil {
+		fmt.Println(err.Error())
+		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %d", novelId)
+	}
+	return data, nil
+}
+
 // NumberOfChapter return the chapter number of a novel
 func (io S3IO) NumberOfChapter(novelName string) (int, error) {
 	filesName, err := io.awsClient.ListFiles(fmt.Sprintf("%s/raw", novelName))

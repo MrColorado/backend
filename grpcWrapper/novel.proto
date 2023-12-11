@@ -3,14 +3,19 @@ package novel;
 option go_package="./;novelpb";
 
 message NovelData {
-    string title = 1;
-    string description = 2;
-    string author = 3;
-    int64 chapter = 4;
+    int64 id = 1;
+    string title = 2;
+    string description = 3;
+    string author = 4;
+    int64 chapter = 5;
 }
 
 message GetNovelRequest{
-    string title = 1;
+    oneof field_search {
+        int64 id = 1;
+        string title = 2;
+    }
+    // int64 id = 1;
 }
 
 message GetNovelResponse {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/MrColorado/epubScraper/converter"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
+	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 	"google.golang.org/grpc"
@@ -38,15 +39,25 @@ func NewSever(io utils.IO, scraper scraper.Scraper, converter converter.Converte
 }
 
 func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
-	fmt.Println("Novel Service - Called GetNovel :", req.GetTitle())
+	var err error
+	var data models.NovelMetaData
+	// data, err = server.io.ImportMetaDataById(int(req.GetId()))
 
-	data, err := server.io.ImportMetaData(formatName(req.GetTitle()))
+	if req.GetId() != 0 {
+		fmt.Println("Novel Service - Called GetNovel :  ", req.GetId())
+		data, err = server.io.ImportMetaDataById(int(req.GetId()))
+	} else {
+		fmt.Println("Novel Service - Called GetNovel :  ", req.GetTitle())
+		data, err = server.io.ImportMetaData(formatName(req.GetTitle()))
+	}
+
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 	return &novelpb.GetNovelResponse{
 		Novel: &novelpb.NovelData{
+			Id:          int64(data.Id),
 			Title:       data.Title,
 			Description: strings.Join(data.Summary, "\n"),
 			Author:      data.Author,
@@ -68,6 +79,7 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
 		response.Novels = append(response.Novels, &novelpb.NovelData{
+			Id:          int64(data.Id),
 			Title:       data.Title,
 			Description: strings.Join(data.Summary, "\n"),
 			Author:      data.Author,

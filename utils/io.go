@@ -8,6 +8,7 @@ type IO interface {
 	ExportMetaData(novelName string, novelMetaData models.NovelMetaData) error
 	ImportNovelChapter(novelName string, chapter int) (models.NovelChapterData, error)
 	ImportMetaData(novelName string) (models.NovelMetaData, error)
+	ImportMetaDataById(novelId int) (models.NovelMetaData, error)
 	NumberOfChapter(novelName string) (int, error)
 
 	ExportBook(novelName string, bookName string, content []byte) error

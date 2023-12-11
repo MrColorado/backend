@@ -62,6 +62,26 @@ func (client *PostgresClient) GetTitle(title string) (models.NovelMetaData, erro
 	}
 
 	return models.NovelMetaData{
+		Id:              novel.ID,
+		Title:           novel.Title,
+		Author:          novel.Author,
+		NbChapter:       novel.NBChapter,
+		FirstChapterURL: novel.FirstChapter,
+		Summary:         []string{novel.Description},
+		CurrentChapter:  novel.CurrentChapter,
+		NextURL:         novel.NextURL,
+	}, nil
+}
+
+func (client *PostgresClient) GetId(id int) (models.NovelMetaData, error) {
+	novel, err := gen_models.Novels(gen_models.NovelWhere.ID.EQ(id)).One(context.TODO(), client.db)
+	if err != nil {
+		fmt.Println(err)
+		return models.NovelMetaData{}, fmt.Errorf("failed to get novel with id %d", id)
+	}
+
+	return models.NovelMetaData{
+		Id:              novel.ID,
 		Title:           novel.Title,
 		Author:          novel.Author,
 		NbChapter:       novel.NBChapter,
@@ -83,6 +103,7 @@ func (client *PostgresClient) List() ([]models.NovelMetaData, error) {
 	res := []models.NovelMetaData{}
 	for _, novel := range novels {
 		res = append(res, models.NovelMetaData{
+			Id:              novel.ID,
 			Title:           novel.Title,
 			Author:          novel.Author,
 			NbChapter:       novel.NBChapter,

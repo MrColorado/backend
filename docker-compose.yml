@@ -49,3 +49,4 @@ services:
       - "55051:55051"
 
 # dc exec database pg_dump -U $POSTGRES_USER novel_database --schema-only
+# sqlboiler -c schemas/sqlboiler.toml psql
