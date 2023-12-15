@@ -18,7 +18,7 @@ const (
 
 type ReadNovelScraper struct {
 	collector *colly.Collector
-	io        utils.IO
+	io        utils.S3IO
 }
 
 func (scraper ReadNovelScraper) findNovelUrl(novelName string) string {
@@ -114,7 +114,7 @@ func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelC
 	return nextURL
 }
 
-func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.IO) ReadNovelScraper {
+func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.S3IO) ReadNovelScraper {
 	return ReadNovelScraper{
 		collector: colly.NewCollector(),
 		io:        io,
@@ -171,4 +171,12 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 	} else {
 		scraper.scrapeNovelStart(novelName, data.CurrentChapter)
 	}
+}
+
+// CanScrapeNovel check if novel is on the webSite
+func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
+	novelName = strings.TrimSpace(strings.ToLower(novelName))
+	novelUrl := scraper.findNovelUrl(novelName)
+
+	return len(novelUrl) > 0
 }

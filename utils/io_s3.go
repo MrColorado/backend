@@ -40,7 +40,7 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData models.Nove
 
 // ExportMetaData write novel meta data on s3
 func (io S3IO) ExportMetaData(novelName string, data models.NovelMetaData) error {
-	err := io.dbClient.InsertOrUpdate(data)
+	err := io.dbClient.InsertOrUpdateNovel(data)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to export metedata of novel %s in database", data.Title)
@@ -65,7 +65,7 @@ func (io S3IO) ImportNovelChapter(novelName string, chapter int) (models.NovelCh
 
 // ImportMetaData read novel meta data from s3
 func (io S3IO) ImportMetaData(novelName string) (models.NovelMetaData, error) {
-	data, err := io.dbClient.GetTitle(novelName)
+	data, err := io.dbClient.GetNovelByTitle(novelName)
 	if err != nil {
 		fmt.Println(err.Error())
 		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %s", novelName)
@@ -75,7 +75,7 @@ func (io S3IO) ImportMetaData(novelName string) (models.NovelMetaData, error) {
 
 // ImportMetaData read novel meta data from s3
 func (io S3IO) ImportMetaDataById(novelId int) (models.NovelMetaData, error) {
-	data, err := io.dbClient.GetId(novelId)
+	data, err := io.dbClient.GetNovelById(novelId)
 	if err != nil {
 		fmt.Println(err.Error())
 		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %d", novelId)
@@ -105,12 +105,21 @@ func (io S3IO) ExportBook(novelName string, bookName string, content []byte) err
 	return nil
 }
 
-func (io S3IO) ListBooks() ([]models.NovelMetaData, error) {
-	fmt.Println("S3 list")
-	datas, err := io.dbClient.List()
+func (io S3IO) ListNovels() ([]models.NovelMetaData, error) {
+	_, err := io.dbClient.ListNovels()
 	if err != nil {
 		fmt.Println(err)
 		return []models.NovelMetaData{}, fmt.Errorf("failed to get list of novel")
+	}
+
+	return []models.NovelMetaData{}, nil
+}
+
+func (io S3IO) ListBooks(novelId int) ([]models.BookData, error) {
+	datas, err := io.dbClient.ListBooks(novelId)
+	if err != nil {
+		fmt.Println(err)
+		return []models.BookData{}, fmt.Errorf("failed to get list of books")
 	}
 
 	return datas, nil

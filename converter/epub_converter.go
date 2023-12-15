@@ -11,10 +11,10 @@ import (
 
 // EpubConverter convert novel data ton epub format
 type EpubConverter struct {
-	io utils.IO
+	io utils.S3IO
 }
 
-func NewEpubConverter(_ configuration.ConverterConfigStruct, io utils.IO) EpubConverter {
+func NewEpubConverter(_ configuration.ConverterConfigStruct, io utils.S3IO) EpubConverter {
 	return EpubConverter{
 		io: io,
 	}

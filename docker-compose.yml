@@ -50,3 +50,4 @@ services:
 
 # dc exec database pg_dump -U $POSTGRES_USER novel_database --schema-only
 # sqlboiler -c schemas/sqlboiler.toml psql
+# psql databasename < data_base_dump

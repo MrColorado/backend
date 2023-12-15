@@ -12,5 +12,5 @@ type IO interface {
 	NumberOfChapter(novelName string) (int, error)
 
 	ExportBook(novelName string, bookName string, content []byte) error
-	ListBooks() ([]models.NovelMetaData, error)
+	ListBook() ([]models.NovelMetaData, error)
 }
