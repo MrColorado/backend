@@ -73,7 +73,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 			Novel: &novelpb.PartialNovel{
 				Id:        int64(data.Id),
 				Title:     data.Title,
-				ImagePath: data.ImagePath,
+				ImagePath: data.CoverPath,
 			},
 			Author:    data.Author,
 			Summary:   strings.Join(data.Summary, "\n"),
@@ -98,7 +98,7 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
 			Id:        int64(data.Id),
 			Title:     data.Title,
-			ImagePath: data.ImagePath,
+			ImagePath: data.CoverPath,
 		})
 	}
 
@@ -111,8 +111,6 @@ func (server *Server) ScrapeNovel(ctx context.Context, req *novelpb.ScrapeNovelR
 	if !server.scraper.CanScrapeNovel(req.GetTitle()) {
 		return &novelpb.ScrapeNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
-
-	// TODO check if we have not already scrap the novel
 
 	go server.scraper.ScrapeNovel(req.GetTitle())
 	return &novelpb.ScrapeNovelResponse{}, nil

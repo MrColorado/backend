@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/MrColorado/epubScraper/configuration"
 	"github.com/MrColorado/epubScraper/dataWrapper"
+	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 )
 
@@ -38,8 +39,7 @@ func main() {
 	postgresClient := dataWrapper.NewPostgresClient(config.PostgresConfig)
 
 	io := utils.NewS3IO(awsClient, postgresClient)
-	// var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
+	var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
+	scraper.ScrapeNovel("this earth is a bit fearsome")
 	// var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
-
-	io.ListNovels()
 }

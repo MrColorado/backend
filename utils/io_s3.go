@@ -40,7 +40,14 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData models.Nove
 
 // ExportMetaData write novel meta data on s3
 func (io S3IO) ExportMetaData(novelName string, data models.NovelMetaData) error {
-	err := io.dbClient.InsertOrUpdateNovel(data)
+	coverName := "cover.jpg"
+	err := io.awsClient.UploadFile(novelName, coverName, data.CoverData)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to save cover of novel %s in s3", data.Title)
+	}
+	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
+	err = io.dbClient.InsertOrUpdateNovel(data)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to export metedata of novel %s in database", data.Title)

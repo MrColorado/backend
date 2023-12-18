@@ -2,6 +2,8 @@ package scraper
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -78,12 +80,17 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 		})
 	})
 
+	scraper.collector.OnHTML(".book", func(e *colly.HTMLElement) {
+		novelMetaData.CoverPath, _ = e.DOM.Find("img").Attr("src")
+	})
+
 	defer func() {
 		scraper.collector.OnHTMLDetach("#tab-description")
 		scraper.collector.OnHTMLDetach(".btn-read-now")
 		scraper.collector.OnHTMLDetach(".l-chapter")
 		scraper.collector.OnHTMLDetach(".next_chap")
 		scraper.collector.OnHTMLDetach(".title")
+		scraper.collector.OnHTMLDetach(".book")
 	}()
 
 	scraper.collector.Visit(url)
@@ -128,6 +135,15 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 	if data.Title == "" {
 		novelUrl := scraper.findNovelUrl(novelName)
 		scraper.scrapMetaData(novelUrl, &data)
+
+		{
+			resp, err := http.Get(data.CoverPath)
+			if err == nil {
+				data.CoverData, _ = io.ReadAll(resp.Body)
+				defer resp.Body.Close()
+			}
+		}
+
 		if data.Title == "" {
 			fmt.Printf("Failed to get page of novel %s\n", novelName)
 			return
@@ -135,6 +151,8 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		if scraper.io.ExportMetaData(data.Title, data) != nil {
 			return
 		}
+		fmt.Println("FINISH")
+		return
 	}
 
 	i := 1

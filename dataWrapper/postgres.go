@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 
@@ -44,14 +45,16 @@ func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClien
 func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) error {
 	novel := gen_models.Novel{
 		Title:          data.Title,
-		NBChapter:      data.NbChapter,
-		FirstChapter:   data.FirstChapterURL,
 		Author:         data.Author,
 		Description:    strings.Join(data.Summary, "\n"),
+		NBChapter:      data.NbChapter,
+		FirstChapter:   data.FirstChapterURL,
 		CurrentChapter: data.CurrentChapter,
 		NextURL:        data.NextURL,
+		LastUpdate:     time.Now(),
+		CoverPath:      "",
 	}
-	err := novel.Upsert(context.TODO(), client.db, true, []string{"title"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
+	err := novel.Upsert(context.TODO(), client.db, true, []string{"title", "author"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)

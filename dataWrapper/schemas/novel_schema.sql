@@ -52,8 +52,8 @@ CREATE TABLE public.novel (
     first_chapter character varying NOT NULL,
     current_chapter integer NOT NULL,
     next_url character varying NOT NULL,
-    cover_path character varying DEFAULT ''::character varying NOT NULL,
-    last_update timestamp without time zone DEFAULT now() NOT NULL
+    last_update timestamp without time zone DEFAULT now() NOT NULL,
+    cover_path character varying NOT NULL
 );
 ALTER TABLE public.novel OWNER TO root_user;
 --
@@ -153,6 +153,12 @@ ADD CONSTRAINT novel_pk PRIMARY KEY (id);
 ALTER TABLE ONLY public.novel_tag_map
 ADD CONSTRAINT novel_tag_map_pk PRIMARY KEY (fk_novel_id, fk_tag_id);
 --
+-- Name: novel_tag_map novel_tag_map_un; Type: CONSTRAINT; Schema: public; Owner: root_user
+--
+
+ALTER TABLE ONLY public.novel_tag_map
+ADD CONSTRAINT novel_tag_map_un UNIQUE (fk_novel_id, fk_tag_id);
+--
 -- Name: novel novel_un; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
 
@@ -184,4 +190,3 @@ ALTER TABLE ONLY public.novel_tag_map
 ADD CONSTRAINT novel_tag_map_fk_1 FOREIGN KEY (fk_tag_id) REFERENCES public.tag(id);
 --
 -- PostgreSQL database dump complete
-- -

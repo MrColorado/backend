@@ -44,10 +44,11 @@ type NovelMetaData struct {
 	NbChapter       int
 	Title           string
 	Author          string
-	Summary         []string
-	ImagePath       string
+	CoverPath       string
 	FirstChapterURL string
 	NextURL         string
 	CurrentChapter  int
+	Summary         []string
+	CoverData       []byte
 	Tags            []TagData
 }
