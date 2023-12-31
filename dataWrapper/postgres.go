@@ -18,11 +18,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
-type novelAndTag struct {
-	Novel gen_models.Novel `boil:",bind"`
-	Tag   gen_models.Tag   `boil:",bind"`
-}
-
 type PostgresClient struct {
 	db *sql.DB
 }
@@ -59,6 +54,35 @@ func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) err
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
+	return nil
+}
+
+func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
+	// TODO migrate this to request in on sequence in order to keep data coherent even if one fail
+	now := time.Now()
+	book := gen_models.Book{
+		FKNovelID:  data.NovelId,
+		End:        data.End,
+		Start:      data.Start,
+		LastUpdate: now,
+	}
+
+	err := book.Upsert(context.TODO(), client.db, true, []string{"fk_novel_id", "start"}, boil.Greylist("end", "last_update"), boil.Infer())
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to upsert book for novel %d starting %d and ending %d", data.NovelId, data.Start, data.End)
+	}
+
+	novel := gen_models.Novel{
+		ID:         data.NovelId,
+		LastUpdate: now,
+	}
+	_, err = novel.Update(context.TODO(), client.db, boil.Whitelist("last_update"))
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to update last_update for for novel %d", data.NovelId)
+	}
+
 	return nil
 }
 
@@ -100,57 +124,43 @@ func (client *PostgresClient) GetNovelById(id int) (models.NovelMetaData, error)
 	}, nil
 }
 
-func partialNovelFromNovelAndTag(nat novelAndTag) models.PartialNovelData {
-	return models.PartialNovelData{
-		Id:        nat.Novel.ID,
-		Title:     nat.Novel.Title,
-		CoverPath: nat.Novel.CoverPath,
-		Tags: []models.TagData{
-			{
-				Id:   nat.Tag.ID,
-				Name: nat.Tag.Name,
-			},
-		},
-	}
-}
-
 func (client *PostgresClient) ListNovels() ([]models.PartialNovelData, error) {
-	var novelsAndTags []novelAndTag
+	res := []models.PartialNovelData{}
 
-	err := gen_models.NewQuery(
-		qm.From("novel"),
-		qm.Select("novel.id", "novel.title", "novel.cover_path", "tag.id", "tag.name"),
-		qm.InnerJoin("novel_tag_map ntm on ntm.fk_novel_id = novel.id"),
-		qm.InnerJoin("tag on tag.id = ntm.fk_tag_id"),
-	).Bind(context.TODO(), client.db, &novelsAndTags)
-
+	novels, err := gen_models.Novels().All(context.TODO(), client.db)
 	if err != nil {
 		fmt.Println(err)
-		return []models.PartialNovelData{}, fmt.Errorf("failed to list novels")
-	} else if len(novelsAndTags) == 0 {
-		return []models.PartialNovelData{}, nil
+		return []models.PartialNovelData{}, fmt.Errorf("failed to get novels")
 	}
 
-	res := []models.PartialNovelData{}
-	var novel models.PartialNovelData
-	for pos, nat := range novelsAndTags {
-		if pos == 0 {
-			novel = partialNovelFromNovelAndTag(nat)
-			continue
+	for _, novel := range novels {
+		tagsDB, err := gen_models.Tags(
+			qm.InnerJoin("novel_tag_map ntm on ntm.fk_tag_id = tag.id"),
+			qm.Where("ntm.fk_novel_id=?", novel.ID),
+		).All(context.TODO(), client.db)
+
+		if err != nil {
+			fmt.Println(err.Error())
+			return []models.PartialNovelData{}, fmt.Errorf("failed to get tags for novel : %s", novel.Title)
 		}
-		if novel.Id != nat.Novel.ID {
-			res = append(res, novel)
-			novel = partialNovelFromNovelAndTag(nat)
-			continue
+
+		tags := []models.TagData{}
+		for _, tag := range tagsDB {
+			tags = append(tags, models.TagData{Id: tag.ID, Name: tag.Name})
 		}
-		novel.Tags = append(novel.Tags, models.TagData{Id: nat.Tag.ID, Name: nat.Tag.Name})
+		res = append(res, models.PartialNovelData{
+			Id:        novel.ID,
+			Title:     novel.Title,
+			CoverPath: novel.CoverPath,
+			Tags:      tags,
+		})
 	}
-	res = append(res, novel)
+
 	return res, nil
 }
 
 func (client *PostgresClient) ListBooks(novelId int) ([]models.BookData, error) {
-	books, err := gen_models.Books(gen_models.BookWhere.ID.EQ(novelId)).All(context.TODO(), client.db)
+	books, err := gen_models.Books(gen_models.BookWhere.FKNovelID.EQ(novelId)).All(context.TODO(), client.db)
 
 	if err != nil {
 		fmt.Println(err)

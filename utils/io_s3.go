@@ -41,6 +41,7 @@ func (io S3IO) ExportNovelChapter(novelName string, novelChapterData models.Nove
 // ExportMetaData write novel meta data on s3
 func (io S3IO) ExportMetaData(novelName string, data models.NovelMetaData) error {
 	coverName := "cover.jpg"
+	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
 	err := io.awsClient.UploadFile(novelName, coverName, data.CoverData)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -52,6 +53,33 @@ func (io S3IO) ExportMetaData(novelName string, data models.NovelMetaData) error
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to export metedata of novel %s in database", data.Title)
 	}
+	return nil
+}
+
+// ExportBook return the chapter number of a novel
+func (io S3IO) ExportBook(novelName string, bookName string, content []byte, metaData models.BookData) error {
+	exportName := fmt.Sprintf("%s.epub", bookName)
+	fmt.Printf("Export book %s of novel %s\n", exportName, novelName)
+	err := io.awsClient.UploadFile(fmt.Sprintf("%s/epub", novelName), exportName, content)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to export book %s of novel %s", exportName, novelName)
+	}
+
+	// TODO create data struct that contain every field instead of doing this kind on request
+	nodelData, err := io.dbClient.GetNovelByTitle(novelName)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to get novel %s", novelName)
+	}
+
+	metaData.NovelId = nodelData.Id
+	err = io.dbClient.InsertOrUpdateBook(metaData)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to save book %s", novelName)
+	}
+
 	return nil
 }
 
@@ -100,26 +128,24 @@ func (io S3IO) NumberOfChapter(novelName string) (int, error) {
 	return len(filesName), nil
 }
 
-// ExportBook return the chapter number of a novel
-func (io S3IO) ExportBook(novelName string, bookName string, content []byte) error {
-	exportName := fmt.Sprintf("%s.epub", bookName)
-	fmt.Printf("Export book %s of novel %s\n", exportName, novelName)
-	err := io.awsClient.UploadFile(fmt.Sprintf("%s/epub", novelName), exportName, content)
-	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to export book %s of novel %s", exportName, novelName)
-	}
-	return nil
-}
-
-func (io S3IO) ListNovels() ([]models.NovelMetaData, error) {
-	_, err := io.dbClient.ListNovels()
+func (io S3IO) ListNovels() ([]models.PartialNovelData, error) {
+	novels, err := io.dbClient.ListNovels()
 	if err != nil {
 		fmt.Println(err)
-		return []models.NovelMetaData{}, fmt.Errorf("failed to get list of novel")
+		return []models.PartialNovelData{}, fmt.Errorf("failed to get list of novel")
 	}
 
-	return []models.NovelMetaData{}, nil
+	for _, novel := range novels {
+		corverUrl, err := io.awsClient.GetPreSignedLink(novel.CoverPath)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(corverUrl)
+		novel.CoverPath = corverUrl
+	}
+
+	return novels, nil
 }
 
 func (io S3IO) ListBooks(novelId int) ([]models.BookData, error) {
@@ -130,4 +156,15 @@ func (io S3IO) ListBooks(novelId int) ([]models.BookData, error) {
 	}
 
 	return datas, nil
+}
+
+func (io S3IO) GetBook(novelName string, start int, end int) ([]byte, error) {
+	filepath := fmt.Sprintf("%s/epub", novelName)
+	bookName := fmt.Sprintf("%s-%04d-%04d.epub", novelName, start, end)
+	content, err := io.awsClient.DownLoadFile(filepath, bookName)
+	if err != nil {
+		fmt.Println(err)
+		return []byte{}, fmt.Errorf("failed to dowload book : %s", bookName)
+	}
+	return content, nil
 }

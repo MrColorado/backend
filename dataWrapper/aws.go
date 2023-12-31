@@ -21,10 +21,12 @@ const (
 )
 
 type AwsClient struct {
-	s3Client *s3.Client
+	s3Client        *s3.Client
+	preSignedClient *s3.PresignClient
 }
 
 func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
+	fmt.Printf("Location : %s Username : %s Password : %s\n", awsConfig.S3Location, awsConfig.S3UserName, awsConfig.S3Password)
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:       "aws",
@@ -34,13 +36,18 @@ func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
 		}, nil
 	})
 
-	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsConfig.S3UserName, awsConfig.S3Password, "")),
 	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
+	s3Client := s3.NewFromConfig(cfg)
 	return &AwsClient{
-		s3Client: s3.NewFromConfig(cfg),
+		s3Client:        s3Client,
+		preSignedClient: s3.NewPresignClient(s3Client),
 	}
 }
 
@@ -100,4 +107,18 @@ func (client *AwsClient) ListFiles(filePath string) ([]string, error) {
 	}
 
 	return filesName, nil
+}
+
+func (client *AwsClient) GetPreSignedLink(filePath string) (string, error) {
+	presignedUrl, err := client.preSignedClient.PresignGetObject(context.TODO(),
+		&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(filePath),
+		},
+	)
+	if err != nil {
+		log.Printf("Couldn't presigned file %v. Here's why: %v\n", filePath, err)
+		return "", nil
+	}
+	return presignedUrl.URL, nil
 }

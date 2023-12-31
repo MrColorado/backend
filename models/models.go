@@ -14,9 +14,10 @@ type TagData struct {
 
 // BookData contain information on chapters' regroupment
 type BookData struct {
-	Id    int
-	Start int
-	End   int
+	Id      int
+	NovelId int
+	Start   int
+	End     int
 }
 
 type PartialNovelData struct {

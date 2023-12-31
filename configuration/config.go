@@ -9,9 +9,9 @@ type AwsConfigStruct struct {
 }
 
 type PostgresConfigStruct struct {
+	PostgresDB       string
 	PostgresUser     string
 	PostgresPassword string
-	PostgresDB       string
 	PostgresHost     string
 }
 
@@ -31,14 +31,14 @@ type Config struct {
 func GetConfig() Config {
 	config := Config{
 		AwsConfig: AwsConfigStruct{
-			S3Location: os.Getenv("S3_LOCATION"),
+			S3Location: os.Getenv("S3_HOST"),
 			S3UserName: os.Getenv("S3_USERNAME"),
 			S3Password: os.Getenv("S3_PASSWORD"),
 		},
 		PostgresConfig: PostgresConfigStruct{
+			PostgresDB:       os.Getenv("POSTGRES_DB"),
 			PostgresUser:     os.Getenv("POSTGRES_USER"),
 			PostgresPassword: os.Getenv("POSTGRES_PASSWORD"),
-			PostgresDB:       os.Getenv("POSTGRES_DB"),
 			PostgresHost:     os.Getenv("POSTGRES_HOST"),
 		},
 	}

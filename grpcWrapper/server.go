@@ -3,12 +3,15 @@
 package grpcWrapper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 
 	"github.com/MrColorado/epubScraper/converter"
+	"github.com/MrColorado/epubScraper/file"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
 	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
@@ -16,6 +19,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	chunkSize = 1024 * 3
 )
 
 type Server struct {
@@ -36,6 +43,50 @@ func NewSever(io utils.S3IO, scraper scraper.Scraper, converter converter.Conver
 		scraper:   scraper,
 		converter: converter,
 	}
+}
+
+func (server *Server) GetBook(req *novelpb.GetBookRequest, bookServer novelpb.NovelServer_GetBookServer) error {
+	fmt.Println("Novel Service - Called GetBook : ", req.GetNovelId())
+
+	data, err := server.io.ImportMetaDataById(int(req.GetNovelId()))
+	if err != nil {
+		fmt.Println(err.Error())
+		return status.Error(codes.NotFound, "Not found")
+	}
+
+	content, err := server.io.GetBook(data.Title, int(req.GetChapter().GetStart()), int(req.GetChapter().GetEnd()))
+	if err != nil {
+		fmt.Println(err.Error())
+		return status.Error(codes.NotFound, "Not found")
+	}
+
+	f := file.NewFile("test_file", "epub", len(content), bytes.NewReader(content))
+	err = bookServer.SendHeader(f.Metadata())
+	if err != nil {
+		return status.Error(codes.Internal, "error during sending header")
+	}
+
+	var n int
+	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
+
+Loop:
+	for {
+		n, err = f.Read(chunk.Chunk)
+		switch err {
+		case nil:
+		case io.EOF:
+			break Loop
+		default:
+			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
+		}
+		chunk.Chunk = chunk.Chunk[:n]
+		serverErr := bookServer.Send(chunk)
+		if serverErr != nil {
+			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
+		}
+	}
+
+	return nil
 }
 
 func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
@@ -91,14 +142,22 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 		fmt.Println(err.Error())
 		return &novelpb.ListNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
-	fmt.Printf("Book size %d\n", len(datas))
 
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
+		tags := []*novelpb.Tag{}
+		for _, tag := range data.Tags {
+			tags = append(tags, &novelpb.Tag{
+				Id:   int64(tag.Id),
+				Name: tag.Name,
+			})
+		}
+
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
 			Id:        int64(data.Id),
 			Title:     data.Title,
 			ImagePath: data.CoverPath,
+			Tags:      tags,
 		})
 	}
 

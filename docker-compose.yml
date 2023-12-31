@@ -3,6 +3,9 @@ services:
   s3:
     image: minio/minio:latest
     container_name: minio
+    expose:
+      - "9000"
+      - "9001"
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -41,9 +44,12 @@ services:
     image: scraper-v1
     container_name: scraper
     environment:
+      S3_HOST: http://s3:9000
+      S3_USERNAME: ${S3_USERNAME}
+      S3_PASSWORD: ${S3_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: database
     ports:
       - "55051:55051"

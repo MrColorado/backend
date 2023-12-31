@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/MrColorado/epubScraper/configuration"
+	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/utils"
 	"github.com/bmaupin/go-epub"
 )
@@ -66,7 +67,12 @@ func (converter EpubConverter) convertToNovel(novelName string, startChapter int
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to write epub file %s in a buffer", fileName)
 	}
-	err = converter.io.ExportBook(novelName, fileName, buf.Bytes())
+
+	book := models.BookData{
+		Start: startChapter,
+		End:   endChapter,
+	}
+	err = converter.io.ExportBook(novelName, fileName, buf.Bytes(), book)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to export epub file %s", fileName)

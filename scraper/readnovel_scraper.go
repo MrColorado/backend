@@ -151,8 +151,6 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		if scraper.io.ExportMetaData(data.Title, data) != nil {
 			return
 		}
-		fmt.Println("FINISH")
-		return
 	}
 
 	i := 1
