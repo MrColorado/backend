@@ -91,7 +91,7 @@ func (converter EpubConverter) ConvertPartialNovel(novelName string, startChapte
 		startChapter += toModulo100
 	}
 
-	numberOfBook := (endChapter - startChapter) / 100
+	numberOfBook := 1 + (endChapter-startChapter)/100
 	firstBook := startChapter / 100
 
 	for i := firstBook; i < firstBook+numberOfBook; i++ {

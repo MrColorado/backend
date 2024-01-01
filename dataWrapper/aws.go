@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	defaultRegion = "us-east-1"
-	bucketName    = "novels"
+	bucketName = "novels"
 )
 
 type AwsClient struct {
@@ -26,12 +25,10 @@ type AwsClient struct {
 }
 
 func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
-	fmt.Printf("Location : %s Username : %s Password : %s\n", awsConfig.S3Location, awsConfig.S3UserName, awsConfig.S3Password)
+	fmt.Printf("URL : %s Username : %s Password : %s\n", awsConfig.S3Location, awsConfig.S3UserName, awsConfig.S3Password)
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
-			PartitionID:       "aws",
 			URL:               awsConfig.S3Location,
-			SigningRegion:     defaultRegion,
 			HostnameImmutable: true,
 		}, nil
 	})

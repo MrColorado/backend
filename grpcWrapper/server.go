@@ -3,15 +3,12 @@
 package grpcWrapper
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 
 	"github.com/MrColorado/epubScraper/converter"
-	"github.com/MrColorado/epubScraper/file"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
 	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
@@ -60,31 +57,38 @@ func (server *Server) GetBook(req *novelpb.GetBookRequest, bookServer novelpb.No
 		return status.Error(codes.NotFound, "Not found")
 	}
 
-	f := file.NewFile("test_file", "epub", len(content), bytes.NewReader(content))
-	err = bookServer.SendHeader(f.Metadata())
+	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, len(content))}
+	chunk.Chunk = content
+	err = bookServer.Send(chunk)
 	if err != nil {
-		return status.Error(codes.Internal, "error during sending header")
+		return status.Errorf(codes.Internal, "server.Send: %v", err)
 	}
 
-	var n int
-	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
+	// f := file.NewFile("test_file", "epub", len(content), bytes.NewReader(content))
+	// err = bookServer.SendHeader(f.Metadata())
+	// if err != nil {
+	// 	return status.Error(codes.Internal, "error during sending header")
+	// }
 
-Loop:
-	for {
-		n, err = f.Read(chunk.Chunk)
-		switch err {
-		case nil:
-		case io.EOF:
-			break Loop
-		default:
-			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
-		}
-		chunk.Chunk = chunk.Chunk[:n]
-		serverErr := bookServer.Send(chunk)
-		if serverErr != nil {
-			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
-		}
-	}
+	// 	var n int
+	// 	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
+
+	// Loop:
+	// 	for {
+	// 		n, err = f.Read(chunk.Chunk)
+	// 		switch err {
+	// 		case nil:
+	// 		case io.EOF:
+	// 			break Loop
+	// 		default:
+	// 			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
+	// 		}
+	// 		chunk.Chunk = chunk.Chunk[:n]
+	// 		serverErr := bookServer.Send(chunk)
+	// 		if serverErr != nil {
+	// 			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
+	// 		}
+	// 	}
 
 	return nil
 }
