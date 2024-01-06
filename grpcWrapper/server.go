@@ -3,12 +3,15 @@
 package grpcWrapper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 
 	"github.com/MrColorado/epubScraper/converter"
+	"github.com/MrColorado/epubScraper/file"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
 	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
@@ -57,38 +60,31 @@ func (server *Server) GetBook(req *novelpb.GetBookRequest, bookServer novelpb.No
 		return status.Error(codes.NotFound, "Not found")
 	}
 
-	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, len(content))}
-	chunk.Chunk = content
-	err = bookServer.Send(chunk)
+	f := file.NewFile(fmt.Sprintf("%s-%04d-%04d.epub", data.Title, req.GetChapter().GetStart(), req.GetChapter().GetEnd()), "epub", len(content), bytes.NewReader(content))
+	err = bookServer.SendHeader(f.Metadata())
 	if err != nil {
-		return status.Errorf(codes.Internal, "server.Send: %v", err)
+		return status.Error(codes.Internal, "error during sending header")
 	}
 
-	// f := file.NewFile("test_file", "epub", len(content), bytes.NewReader(content))
-	// err = bookServer.SendHeader(f.Metadata())
-	// if err != nil {
-	// 	return status.Error(codes.Internal, "error during sending header")
-	// }
+	var n int
+	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
 
-	// 	var n int
-	// 	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
-
-	// Loop:
-	// 	for {
-	// 		n, err = f.Read(chunk.Chunk)
-	// 		switch err {
-	// 		case nil:
-	// 		case io.EOF:
-	// 			break Loop
-	// 		default:
-	// 			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
-	// 		}
-	// 		chunk.Chunk = chunk.Chunk[:n]
-	// 		serverErr := bookServer.Send(chunk)
-	// 		if serverErr != nil {
-	// 			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
-	// 		}
-	// 	}
+Loop:
+	for {
+		n, err = f.Read(chunk.Chunk)
+		switch err {
+		case nil:
+		case io.EOF:
+			break Loop
+		default:
+			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
+		}
+		chunk.Chunk = chunk.Chunk[:n]
+		serverErr := bookServer.Send(chunk)
+		if serverErr != nil {
+			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
+		}
+	}
 
 	return nil
 }
@@ -168,15 +164,16 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 	return &response, nil
 }
 
-func (server *Server) ScrapeNovel(ctx context.Context, req *novelpb.ScrapeNovelRequest) (*novelpb.ScrapeNovelResponse, error) {
-	fmt.Println("Novel Service - Called RequestNovel")
+func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
+	fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
 
 	if !server.scraper.CanScrapeNovel(req.GetTitle()) {
-		return &novelpb.ScrapeNovelResponse{}, status.Error(codes.NotFound, "Not found")
+		fmt.Println("Faield to scrape novel")
+		return &novelpb.RequestNovelResponse{Success: false}, status.Error(codes.NotFound, "Not found")
 	}
 
-	go server.scraper.ScrapeNovel(req.GetTitle())
-	return &novelpb.ScrapeNovelResponse{}, nil
+	// go server.scraper.ScrapeNovel(req.GetTitle())
+	return &novelpb.RequestNovelResponse{Success: true}, nil
 }
 
 func (server *Server) Run() {

@@ -13,5 +13,8 @@ COPY . .
 RUN go build -o app
 
 FROM scratch
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder app .
+
 ENTRYPOINT ["./app"]

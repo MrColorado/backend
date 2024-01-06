@@ -1,47 +1,41 @@
 package models
 
+import "time"
+
 // NovelChapterData contain data of a chapter
 type NovelChapterData struct {
 	Chapter   int
 	Paragraph []string
 }
 
-// TagData contain data on tag
-type TagData struct {
-	Id   int
-	Name string
-}
-
 // BookData contain information on chapters' regroupment
 type BookData struct {
-	Id      int
 	NovelId int
 	Start   int
 	End     int
 }
 
 type PartialNovelData struct {
-	Id        int
-	Title     string
-	CoverPath string
-	Tags      []TagData
+	Title      string
+	Author     string
+	CoverPath  string
+	Summary    string
+	Genres     []string
+	LastUpdate time.Time
 }
 
 type NovelData struct {
 	CoreData        PartialNovelData
 	NbChapter       int
 	CurrentChapter  int
-	Author          string
 	FirstChapterURL string
 	NextURL         string
-	Summary         []string
 }
 
 // SCRAPER //
 
 // NovelMetaData contain data on the novel
 type NovelMetaData struct {
-	Id              int
 	NbChapter       int
 	Title           string
 	Author          string
@@ -49,7 +43,8 @@ type NovelMetaData struct {
 	FirstChapterURL string
 	NextURL         string
 	CurrentChapter  int
-	Summary         []string
 	CoverData       []byte
-	Tags            []TagData
+	Summary         []string
+	Genres          []string
+	Tags            []string
 }

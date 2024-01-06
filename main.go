@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/MrColorado/epubScraper/configuration"
-	"github.com/MrColorado/epubScraper/converter"
 	"github.com/MrColorado/epubScraper/dataWrapper"
-	"github.com/MrColorado/epubScraper/utils"
 )
 
 // func main() {
@@ -35,13 +35,14 @@ import (
 
 func main() {
 	config := configuration.GetConfig()
-	awsClient := dataWrapper.NewAwsClient(config.AwsConfig)
+	// awsClient := dataWrapper.NewAwsClient(config.AwsConfig)
 	postgresClient := dataWrapper.NewPostgresClient(config.PostgresConfig)
 
-	io := utils.NewS3IO(awsClient, postgresClient)
-	var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
+	// io := utils.NewS3IO(awsClient, postgresClient)
+	// var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
+	// var scraper scraper.Scraper = scraper.NewReadNovelScrapper(config.ScraperConfig, io)
 
 	novelName := "rebirth of an idle noblewoman"
-	conv.ConvertPartialNovel(novelName, 1, 100)
-	io.GetBook("rebirth of an idle noblewoman", 1, 100)
+	tmp, _ := postgresClient.GetNovelByTitle(novelName)
+	fmt.Printf(tmp.CoreData.Author)
 }

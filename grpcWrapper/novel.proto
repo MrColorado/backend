@@ -2,14 +2,21 @@ syntax = "proto3";
 package novel;
 option go_package="./;novelpb";
 
-message Chapter {
-    int64 start = 1;
-    int64 end = 2;
+message Author {
+    string name = 2;
+}
+
+message Genre {
+    string name = 2;
 }
 
 message Tag {
-    int64 id = 1;
     string name = 2;
+}
+
+message Chapter {
+    int64 start = 1;
+    int64 end = 2;
 }
 
 message PartialNovel {
@@ -49,22 +56,25 @@ message GetNovelResponse {
     FullNovel novel = 1;
 }
 
-message ListNovelRequest { }
+message ListNovelRequest {
+    optional string startBy = 1; 
+ }
 
 message ListNovelResponse {
     repeated PartialNovel novels = 1;
 }
 
-message ScrapeNovelRequest {
+message RequestNovelRequest {
     string title = 1;
 }
 
-message ScrapeNovelResponse {
+message RequestNovelResponse {
+    bool success = 1;
 }
 
 service NovelServer{
     rpc GetBook(GetBookRequest) returns (stream GetBookResponse) {};
     rpc GetNovel(GetNovelRequest) returns (GetNovelResponse) {};
     rpc ListNovel(ListNovelRequest) returns (ListNovelResponse) {};
-    rpc ScrapeNovel(ScrapeNovelRequest) returns (ScrapeNovelResponse) {};
+    rpc RequestNovel(RequestNovelRequest) returns (RequestNovelResponse) {};
 }

@@ -23,8 +23,10 @@ type ReadNovelScraper struct {
 	io        utils.S3IO
 }
 
-func (scraper ReadNovelScraper) findNovelUrl(novelName string) string {
+func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
+	fmt.Println("findNovelUrl")
 	url := fmt.Sprintf("%s/novel-list/search?keyword=%s", readNovelURL, strings.ReplaceAll(novelName, " ", "+"))
+	fmt.Println(url)
 	nbFound := 0
 	novelUrl := ""
 
@@ -32,14 +34,20 @@ func (scraper ReadNovelScraper) findNovelUrl(novelName string) string {
 		e.ForEach(".novel-title", func(_ int, title *colly.HTMLElement) {
 			nbFound += 1
 			novelUrl = fmt.Sprintf("%s%s", readNovelURL, title.ChildAttr("a", "href"))
+			fmt.Println(novelUrl)
 		})
 	})
 
-	scraper.collector.Visit(url)
-	if nbFound == 1 {
-		return novelUrl
+	err := scraper.collector.Visit(url)
+	if err != nil {
+		fmt.Println(err.Error())
+		return "", fmt.Errorf("Failed to visit url : %s", novelUrl)
 	}
-	return ""
+
+	if nbFound == 1 {
+		return novelUrl, nil
+	}
+	return "", nil
 }
 
 func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
@@ -123,7 +131,7 @@ func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelC
 
 func NewReadNovelScrapper(_ configuration.ScraperConfigStruct, io utils.S3IO) ReadNovelScraper {
 	return ReadNovelScraper{
-		collector: colly.NewCollector(),
+		collector: colly.NewCollector(colly.AllowURLRevisit()),
 		io:        io,
 	}
 }
@@ -133,7 +141,7 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 	data, _ := scraper.io.ImportMetaData(novelName)
 
 	if data.Title == "" {
-		novelUrl := scraper.findNovelUrl(novelName)
+		novelUrl, _ := scraper.findNovelUrl(novelName)
 		scraper.scrapMetaData(novelUrl, &data)
 
 		{
@@ -191,8 +199,15 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 
 // CanScrapeNovel check if novel is on the webSite
 func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
+	fmt.Printf("CanScrapeNovel : %s", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))
-	novelUrl := scraper.findNovelUrl(novelName)
+	novelUrl, err := scraper.findNovelUrl(novelName)
 
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+
+	fmt.Println(novelUrl)
 	return len(novelUrl) > 0
 }
