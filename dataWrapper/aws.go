@@ -25,7 +25,6 @@ type AwsClient struct {
 }
 
 func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
-	fmt.Printf("URL : %s Username : %s Password : %s\n", awsConfig.S3Location, awsConfig.S3UserName, awsConfig.S3Password)
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL:               awsConfig.S3Location,

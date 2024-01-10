@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -20,7 +19,7 @@ import (
 
 type novelAuthor struct {
 	gen_models.Novel  `boil:",bind"`
-	gen_models.Author `boil:",bind"`
+	gen_models.Author `boil:",bind"` // nolint
 	// author           `boil:",author_name"`
 }
 
@@ -29,9 +28,7 @@ type PostgresClient struct {
 }
 
 func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClient {
-	connStr := fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost)
-	fmt.Println(connStr)
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -53,20 +50,28 @@ func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) err
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
+	if author.ID == 0 {
+		atr, err := gen_models.Authors(gen_models.AuthorWhere.Name.EQ(data.Author)).One(context.TODO(), client.db)
+		if err != nil {
+			fmt.Println(err)
+			return fmt.Errorf("failed to get author %s", data.Author)
+		}
+		author.ID = atr.ID
+	}
 
 	// Todo handle tags and genres
 	novel := gen_models.Novel{
 		Title:          data.Title,
-		FKAuthorID:     author.ID,
-		Description:    strings.Join(data.Summary, "\n"),
-		NBChapter:      data.NbChapter,
-		FirstChapter:   data.FirstChapterURL,
-		CurrentChapter: data.CurrentChapter,
+		Summary:        data.Summary,
+		FirstURL:       data.FirstURL,
 		NextURL:        data.NextURL,
+		CoverPath:      data.CoverPath,
+		NBChapter:      data.NbChapter,
+		CurrentChapter: data.CurrentChapter,
 		LastUpdate:     time.Now(),
-		CoverPath:      "",
+		FKAuthorID:     author.ID,
 	}
-	err = novel.Upsert(context.TODO(), client.db, true, []string{"title", "author"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
+	err = novel.Upsert(context.TODO(), client.db, true, []string{"title"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
@@ -87,7 +92,7 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 	err := book.Upsert(context.TODO(), client.db, true, []string{"fk_novel_id", "start"}, boil.Greylist("end", "last_update"), boil.Infer())
 	if err != nil {
 		fmt.Println(err)
-		return fmt.Errorf("failed to upsert book for novel %d starting %d and ending %d", data.NovelId, data.Start, data.End)
+		return fmt.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelId, data.Start, data.End)
 	}
 
 	novel := gen_models.Novel{
@@ -97,17 +102,47 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 	_, err = novel.Update(context.TODO(), client.db, boil.Whitelist("last_update"))
 	if err != nil {
 		fmt.Println(err)
-		return fmt.Errorf("failed to update last_update for for novel %d", data.NovelId)
+		return fmt.Errorf("failed to update last_update for for novel %s", data.NovelId)
 	}
 
 	return nil
+}
+
+func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) {
+	var na novelAuthor
+
+	err := gen_models.NewQuery(
+		qm.Select("novel.nb_chapter", "novel.title", "author.name", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
+		qm.From("novel"),
+		qm.InnerJoin("author on author.id = novel.fk_author_id"),
+		qm.Where("novel.id = ?", id),
+	).Bind(context.TODO(), client.db, &na)
+
+	if err != nil {
+		fmt.Println(err)
+		return models.NovelData{}, fmt.Errorf("failed to get novel with id %s", id)
+	}
+
+	return models.NovelData{
+		CoreData: models.PartialNovelData{
+			Title:      na.Title,
+			Author:     na.Name,
+			CoverPath:  na.CoverPath,
+			Summary:    na.Summary,
+			LastUpdate: na.LastUpdate,
+		},
+		NbChapter:      na.NBChapter,
+		CurrentChapter: na.CurrentChapter,
+		FirstURL:       na.FirstURL,
+		NextURL:        na.NextURL,
+	}, nil
 }
 
 func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, error) {
 	var na novelAuthor
 
 	err := gen_models.NewQuery(
-		qm.Select("novel.nb_chapter", "novel.title", "author.name", "novel.cover_path", "novel.first_chapter", "novel.next_url", "novel.current_chapter", "novel.description", "novel.last_update"),
+		qm.Select("novel.nb_chapter", "novel.title", "author.name", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
 		qm.From("novel"),
 		qm.InnerJoin("author on author.id = novel.fk_author_id"),
 		qm.Where("novel.title = ?", title),
@@ -123,13 +158,13 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 			Title:      na.Title,
 			Author:     na.Name,
 			CoverPath:  na.CoverPath,
-			Summary:    na.Description,
+			Summary:    na.Summary,
 			LastUpdate: na.LastUpdate,
 		},
-		NbChapter:       na.NBChapter,
-		CurrentChapter:  na.CurrentChapter,
-		FirstChapterURL: na.FirstChapter,
-		NextURL:         na.NextURL,
+		NbChapter:      na.NBChapter,
+		CurrentChapter: na.CurrentChapter,
+		FirstURL:       na.FirstURL,
+		NextURL:        na.NextURL,
 	}, nil
 }
 
@@ -160,7 +195,7 @@ func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNove
 		res = append(res, models.PartialNovelData{
 			Title:      novel.Title,
 			CoverPath:  novel.CoverPath,
-			Summary:    novel.Description, // Todo description => summary
+			Summary:    novel.Summary,
 			Genres:     genres,
 			LastUpdate: novel.LastUpdate,
 		})
@@ -169,7 +204,7 @@ func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNove
 	return res, nil
 }
 
-func (client *PostgresClient) ListBooks(novelId int) ([]models.BookData, error) {
+func (client *PostgresClient) ListBooks(novelId string) ([]models.BookData, error) {
 	books, err := gen_models.Books(gen_models.BookWhere.FKNovelID.EQ(novelId)).All(context.TODO(), client.db)
 
 	if err != nil {

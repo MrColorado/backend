@@ -3,15 +3,7 @@ package novel;
 option go_package="./;novelpb";
 
 message Author {
-    string name = 2;
-}
-
-message Genre {
-    string name = 2;
-}
-
-message Tag {
-    string name = 2;
+    string name = 1;
 }
 
 message Chapter {
@@ -20,24 +12,25 @@ message Chapter {
 }
 
 message PartialNovel {
-    int64 id = 1;
     string title = 2;
-    string imagePath = 3;
-    repeated Tag tags = 4;
+    string author = 3;
+    string summary = 4;
+    string coverURL = 5;
+    repeated string genres = 6;
 }
 
 message FullNovel {
-    PartialNovel novel = 1;
-    string author = 2;
-    string summary = 3;
-    int64 nbChapter = 4;
+    string id = 1;
+    PartialNovel novel = 2;
+    int64 nbChapter = 3;
+    repeated string tags = 4;
     repeated Chapter chapters = 5;
 }
 
 // Request / Response
 
 message GetBookRequest {
-    int64 novelId = 1;
+    string novelId = 1;
     Chapter chapter = 2;
 }
 
@@ -46,10 +39,7 @@ message GetBookResponse {
 }
 
 message GetNovelRequest{
-    oneof field_search {
-        int64 id = 1;
-        string title = 2;
-    }
+    string title = 1;
 }
 
 message GetNovelResponse {

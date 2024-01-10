@@ -67,13 +67,13 @@ func (io S3IO) ExportBook(novelName string, bookName string, content []byte, met
 	}
 
 	// TODO create data struct that contain every field instead of doing this kind on request
-	nodelData, err := io.dbClient.GetNovelByTitle(novelName)
+	novelData, err := io.dbClient.GetNovelByTitle(novelName)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to get novel %s", novelName)
 	}
 
-	metaData.NovelId = nodelData.Id
+	metaData.NovelId = novelData.Id
 	err = io.dbClient.InsertOrUpdateBook(metaData)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -105,17 +105,17 @@ func (io S3IO) ImportMetaData(novelName string) (models.NovelMetaData, error) {
 		fmt.Println(err.Error())
 		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %s", novelName)
 	}
-	return data, nil
+	return models.NovelToMeta(data), nil
 }
 
 // ImportMetaData read novel meta data from s3
-func (io S3IO) ImportMetaDataById(novelId int) (models.NovelMetaData, error) {
+func (io S3IO) ImportMetaDataById(novelId string) (models.NovelMetaData, error) {
 	data, err := io.dbClient.GetNovelById(novelId)
 	if err != nil {
 		fmt.Println(err.Error())
-		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %d", novelId)
+		return models.NovelMetaData{}, fmt.Errorf("failed to get meta_data of novel %s", novelId)
 	}
-	return data, nil
+	return models.NovelToMeta(data), nil
 }
 
 // NumberOfChapter return the chapter number of a novel
@@ -128,8 +128,17 @@ func (io S3IO) NumberOfChapter(novelName string) (int, error) {
 	return len(filesName), nil
 }
 
-func (io S3IO) ListNovels() ([]models.PartialNovelData, error) {
-	novels, err := io.dbClient.ListNovels()
+func (io S3IO) GetNovel(novelName string) (models.NovelData, error) {
+	data, err := io.dbClient.GetNovelByTitle(novelName)
+	if err != nil {
+		fmt.Println(err.Error())
+		return models.NovelData{}, fmt.Errorf("failed to get meta_data of novel %s", novelName)
+	}
+	return data, nil
+}
+
+func (io S3IO) ListNovels(startBy string) ([]models.PartialNovelData, error) {
+	novels, err := io.dbClient.ListNovels(startBy)
 	if err != nil {
 		fmt.Println(err)
 		return []models.PartialNovelData{}, fmt.Errorf("failed to get list of novel")
@@ -148,8 +157,8 @@ func (io S3IO) ListNovels() ([]models.PartialNovelData, error) {
 	return novels, nil
 }
 
-func (io S3IO) ListBooks(novelId int) ([]models.BookData, error) {
-	datas, err := io.dbClient.ListBooks(novelId)
+func (io S3IO) ListBooks(novelName string) ([]models.BookData, error) {
+	datas, err := io.dbClient.ListBooks(novelName)
 	if err != nil {
 		fmt.Println(err)
 		return []models.BookData{}, fmt.Errorf("failed to get list of books")

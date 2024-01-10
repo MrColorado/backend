@@ -13,7 +13,6 @@ import (
 	"github.com/MrColorado/epubScraper/converter"
 	"github.com/MrColorado/epubScraper/file"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
-	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 	"google.golang.org/grpc"
@@ -22,7 +21,7 @@ import (
 )
 
 const (
-	chunkSize = 1024 * 3
+	chunkSize = 1048576 // 1 MB
 )
 
 type Server struct {
@@ -48,7 +47,7 @@ func NewSever(io utils.S3IO, scraper scraper.Scraper, converter converter.Conver
 func (server *Server) GetBook(req *novelpb.GetBookRequest, bookServer novelpb.NovelServer_GetBookServer) error {
 	fmt.Println("Novel Service - Called GetBook : ", req.GetNovelId())
 
-	data, err := server.io.ImportMetaDataById(int(req.GetNovelId()))
+	data, err := server.io.ImportMetaDataById(req.NovelId)
 	if err != nil {
 		fmt.Println(err.Error())
 		return status.Error(codes.NotFound, "Not found")
@@ -90,22 +89,15 @@ Loop:
 }
 
 func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
-	var err error
-	var data models.NovelMetaData
+	fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
 
-	if req.GetId() != 0 {
-		fmt.Println("Novel Service - Called GetNovel : ", req.GetId())
-		data, err = server.io.ImportMetaDataById(int(req.GetId()))
-	} else {
-		fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
-		data, err = server.io.ImportMetaData(formatName(req.GetTitle()))
-	}
+	data, err := server.io.GetNovel(formatName(req.GetTitle()))
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	chaptersData, err := server.io.ListBooks(data.Id)
+	chaptersData, err := server.io.ListBooks(data.CoreData.Title)
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
@@ -122,13 +114,14 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 	return &novelpb.GetNovelResponse{
 		Novel: &novelpb.FullNovel{
 			Novel: &novelpb.PartialNovel{
-				Id:        int64(data.Id),
-				Title:     data.Title,
-				ImagePath: data.CoverPath,
+				Title:    data.CoreData.Title,
+				Author:   data.CoreData.Author,
+				Summary:  data.CoreData.Summary,
+				CoverURL: "data.CoreData.CoverPath", // TODO GetPreSigned maybe not here
+				Genres:   data.CoreData.Genres,
 			},
-			Author:    data.Author,
-			Summary:   strings.Join(data.Summary, "\n"),
 			NbChapter: int64(data.NbChapter),
+			Tags:      data.Tags,
 			Chapters:  chapters,
 		},
 	}, nil
@@ -137,7 +130,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelRequest) (*novelpb.ListNovelResponse, error) {
 	fmt.Println("Novel Service - Called ListNovel")
 
-	datas, err := server.io.ListNovels()
+	datas, err := server.io.ListNovels(req.GetStartBy())
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.ListNovelResponse{}, status.Error(codes.NotFound, "Not found")
@@ -145,19 +138,12 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
-		tags := []*novelpb.Tag{}
-		for _, tag := range data.Tags {
-			tags = append(tags, &novelpb.Tag{
-				Id:   int64(tag.Id),
-				Name: tag.Name,
-			})
-		}
-
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
-			Id:        int64(data.Id),
-			Title:     data.Title,
-			ImagePath: data.CoverPath,
-			Tags:      tags,
+			Title:    data.Title,
+			Author:   data.Author,
+			Summary:  data.Summary,
+			CoverURL: "data.CoverPath", // TODO coverURL
+			Genres:   data.Genres,
 		})
 	}
 
@@ -172,7 +158,7 @@ func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNove
 		return &novelpb.RequestNovelResponse{Success: false}, status.Error(codes.NotFound, "Not found")
 	}
 
-	// go server.scraper.ScrapeNovel(req.GetTitle())
+	go server.scraper.ScrapeNovel(req.GetTitle())
 	return &novelpb.RequestNovelResponse{Success: true}, nil
 }
 

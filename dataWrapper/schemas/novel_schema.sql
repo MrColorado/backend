@@ -14,6 +14,16 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+--
+-- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+--
+-- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner:
+--
+
+COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
 SET default_tablespace = '';
 SET default_table_access_method = heap;
 --
@@ -41,24 +51,13 @@ ALTER SEQUENCE public.author_id_seq OWNED BY public.author.id;
 --
 
 CREATE TABLE public.book (
-    id integer NOT NULL,
-    fk_novel_id integer NOT NULL,
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     start integer NOT NULL,
     "end" integer NOT NULL,
-    last_update timestamp without time zone NOT NULL
+    last_update timestamp without time zone DEFAULT now() NOT NULL,
+    fk_novel_id uuid NOT NULL
 );
 ALTER TABLE public.book OWNER TO root_user;
---
--- Name: chapter_id_seq; Type: SEQUENCE; Schema: public; Owner: root_user
---
-
-CREATE SEQUENCE public.chapter_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER TABLE public.chapter_id_seq OWNER TO root_user;
---
--- Name: chapter_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root_user
---
-
-ALTER SEQUENCE public.chapter_id_seq OWNED BY public.book.id;
 --
 -- Name: genre; Type: TABLE; Schema: public; Owner: root_user
 --
@@ -84,15 +83,15 @@ ALTER SEQUENCE public.genre_id_seq OWNED BY public.genre.id;
 --
 
 CREATE TABLE public.novel (
-    id integer NOT NULL,
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     title character varying NOT NULL,
-    description character varying NOT NULL,
-    nb_chapter integer NOT NULL,
-    first_chapter character varying NOT NULL,
-    current_chapter integer NOT NULL,
-    next_url character varying NOT NULL,
-    last_update timestamp without time zone DEFAULT now() NOT NULL,
+    summary character varying NOT NULL,
     cover_path character varying NOT NULL,
+    first_url character varying NOT NULL,
+    next_url character varying NOT NULL,
+    nb_chapter integer NOT NULL,
+    current_chapter integer NOT NULL,
+    last_update timestamp without time zone DEFAULT now() NOT NULL,
     fk_author_id integer NOT NULL
 );
 ALTER TABLE public.novel OWNER TO root_user;
@@ -101,41 +100,19 @@ ALTER TABLE public.novel OWNER TO root_user;
 --
 
 CREATE TABLE public.novel_genre_map (
-    fk_novel_id integer NOT NULL,
+    fk_novel_id uuid NOT NULL,
     fk_genre_id integer NOT NULL
 );
 ALTER TABLE public.novel_genre_map OWNER TO root_user;
---
--- Name: novel_id_seq; Type: SEQUENCE; Schema: public; Owner: root_user
---
-
-CREATE SEQUENCE public.novel_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER TABLE public.novel_id_seq OWNER TO root_user;
---
--- Name: novel_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root_user
---
-
-ALTER SEQUENCE public.novel_id_seq OWNED BY public.novel.id;
 --
 -- Name: novel_tag_map; Type: TABLE; Schema: public; Owner: root_user
 --
 
 CREATE TABLE public.novel_tag_map (
-    fk_novel_id integer NOT NULL,
+    fk_novel_id uuid NOT NULL,
     fk_tag_id integer NOT NULL
 );
 ALTER TABLE public.novel_tag_map OWNER TO root_user;
---
--- Name: novel_tag_map_fk_novel_id_seq; Type: SEQUENCE; Schema: public; Owner: root_user
---
-
-CREATE SEQUENCE public.novel_tag_map_fk_novel_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
-ALTER TABLE public.novel_tag_map_fk_novel_id_seq OWNER TO root_user;
---
--- Name: novel_tag_map_fk_novel_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root_user
---
-
-ALTER SEQUENCE public.novel_tag_map_fk_novel_id_seq OWNED BY public.novel_tag_map.fk_novel_id;
 --
 -- Name: tag; Type: TABLE; Schema: public; Owner: root_user
 --
@@ -164,26 +141,12 @@ ALTER TABLE ONLY public.author
 ALTER COLUMN id
 SET DEFAULT nextval('public.author_id_seq'::regclass);
 --
--- Name: book id; Type: DEFAULT; Schema: public; Owner: root_user
---
-
-ALTER TABLE ONLY public.book
-ALTER COLUMN id
-SET DEFAULT nextval('public.chapter_id_seq'::regclass);
---
 -- Name: genre id; Type: DEFAULT; Schema: public; Owner: root_user
 --
 
 ALTER TABLE ONLY public.genre
 ALTER COLUMN id
 SET DEFAULT nextval('public.genre_id_seq'::regclass);
---
--- Name: novel id; Type: DEFAULT; Schema: public; Owner: root_user
---
-
-ALTER TABLE ONLY public.novel
-ALTER COLUMN id
-SET DEFAULT nextval('public.novel_id_seq'::regclass);
 --
 -- Name: tag id; Type: DEFAULT; Schema: public; Owner: root_user
 --
@@ -204,17 +167,23 @@ ADD CONSTRAINT author_pk PRIMARY KEY (id);
 ALTER TABLE ONLY public.author
 ADD CONSTRAINT author_un UNIQUE (name);
 --
--- Name: book book_un; Type: CONSTRAINT; Schema: public; Owner: root_user
+-- Name: book book_pk; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
 
 ALTER TABLE ONLY public.book
-ADD CONSTRAINT book_un UNIQUE (fk_novel_id, start);
+ADD CONSTRAINT book_pk PRIMARY KEY (id);
 --
--- Name: book chapter_pk; Type: CONSTRAINT; Schema: public; Owner: root_user
+-- Name: book book_un_end; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
 
 ALTER TABLE ONLY public.book
-ADD CONSTRAINT chapter_pk PRIMARY KEY (id);
+ADD CONSTRAINT book_un_end UNIQUE ("end", fk_novel_id);
+--
+-- Name: book book_un_start; Type: CONSTRAINT; Schema: public; Owner: root_user
+--
+
+ALTER TABLE ONLY public.book
+ADD CONSTRAINT book_un_start UNIQUE (start, fk_novel_id);
 --
 -- Name: genre genre_pk; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
@@ -246,12 +215,6 @@ ADD CONSTRAINT novel_pk PRIMARY KEY (id);
 ALTER TABLE ONLY public.novel_tag_map
 ADD CONSTRAINT novel_tag_map_pk PRIMARY KEY (fk_novel_id, fk_tag_id);
 --
--- Name: novel_tag_map novel_tag_map_un; Type: CONSTRAINT; Schema: public; Owner: root_user
---
-
-ALTER TABLE ONLY public.novel_tag_map
-ADD CONSTRAINT novel_tag_map_un UNIQUE (fk_novel_id, fk_tag_id);
---
 -- Name: novel novel_un; Type: CONSTRAINT; Schema: public; Owner: root_user
 --
 
@@ -270,11 +233,11 @@ ADD CONSTRAINT tag_pk PRIMARY KEY (id);
 ALTER TABLE ONLY public.tag
 ADD CONSTRAINT tag_un UNIQUE (name);
 --
--- Name: book book_fk; Type: FK CONSTRAINT; Schema: public; Owner: root_user
+-- Name: book book_novel_fk; Type: FK CONSTRAINT; Schema: public; Owner: root_user
 --
 
 ALTER TABLE ONLY public.book
-ADD CONSTRAINT book_fk FOREIGN KEY (fk_novel_id) REFERENCES public.novel(id);
+ADD CONSTRAINT book_novel_fk FOREIGN KEY (fk_novel_id) REFERENCES public.novel(id);
 --
 -- Name: novel novel_author_fk; Type: FK CONSTRAINT; Schema: public; Owner: root_user
 --
@@ -307,4 +270,3 @@ ALTER TABLE ONLY public.novel_tag_map
 ADD CONSTRAINT novel_tag_map_tag_fk FOREIGN KEY (fk_tag_id) REFERENCES public.tag(id);
 --
 -- PostgreSQL database dump complete
-- -

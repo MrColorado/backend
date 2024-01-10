@@ -10,7 +10,8 @@ type NovelChapterData struct {
 
 // BookData contain information on chapters' regroupment
 type BookData struct {
-	NovelId int
+	Id      string
+	NovelId string
 	Start   int
 	End     int
 }
@@ -25,26 +26,62 @@ type PartialNovelData struct {
 }
 
 type NovelData struct {
-	CoreData        PartialNovelData
-	NbChapter       int
-	CurrentChapter  int
-	FirstChapterURL string
-	NextURL         string
+	Id             string
+	CoreData       PartialNovelData
+	NbChapter      int
+	CurrentChapter int
+	FirstURL       string
+	NextURL        string
+	Tags           []string
 }
 
 // SCRAPER //
 
 // NovelMetaData contain data on the novel
 type NovelMetaData struct {
-	NbChapter       int
-	Title           string
-	Author          string
-	CoverPath       string
-	FirstChapterURL string
-	NextURL         string
-	CurrentChapter  int
-	CoverData       []byte
-	Summary         []string
-	Genres          []string
-	Tags            []string
+	Title          string
+	Author         string
+	CoverPath      string
+	FirstURL       string
+	Summary        string
+	NextURL        string
+	NbChapter      int
+	CurrentChapter int
+	CoverData      []byte
+	Genres         []string
+	Tags           []string
+	LastUpdate     time.Time
+}
+
+func MetaToNovel(data NovelMetaData) NovelData {
+	return NovelData{
+		CoreData: PartialNovelData{
+			Title:      data.Title,
+			Author:     data.Author,
+			CoverPath:  data.CoverPath,
+			Summary:    data.Summary,
+			Genres:     data.Genres,
+			LastUpdate: data.LastUpdate,
+		},
+		NbChapter:      data.NbChapter,
+		CurrentChapter: data.CurrentChapter,
+		FirstURL:       data.FirstURL,
+		NextURL:        data.NextURL,
+	}
+}
+
+func NovelToMeta(data NovelData) NovelMetaData {
+	return NovelMetaData{
+		Title:          data.CoreData.Title,
+		Author:         data.CoreData.Author,
+		CoverPath:      data.CoreData.CoverPath,
+		Summary:        data.CoreData.Summary,
+		Genres:         data.CoreData.Genres,
+		FirstURL:       data.FirstURL,
+		NextURL:        data.NextURL,
+		NbChapter:      data.NbChapter,
+		CurrentChapter: data.CurrentChapter,
+		Tags:           data.Tags,
+		CoverData:      []byte{},
+	}
 }

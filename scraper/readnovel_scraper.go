@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	readNovelURL string = "https://readnovelfull.com"
+	ReadNovelScraperName        = "ReadNovel"
+	readNovelURL         string = "https://readnovelfull.com"
 )
 
 type ReadNovelScraper struct {
@@ -24,9 +25,7 @@ type ReadNovelScraper struct {
 }
 
 func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
-	fmt.Println("findNovelUrl")
 	url := fmt.Sprintf("%s/novel-list/search?keyword=%s", readNovelURL, strings.ReplaceAll(novelName, " ", "+"))
-	fmt.Println(url)
 	nbFound := 0
 	novelUrl := ""
 
@@ -34,14 +33,13 @@ func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
 		e.ForEach(".novel-title", func(_ int, title *colly.HTMLElement) {
 			nbFound += 1
 			novelUrl = fmt.Sprintf("%s%s", readNovelURL, title.ChildAttr("a", "href"))
-			fmt.Println(novelUrl)
 		})
 	})
 
 	err := scraper.collector.Visit(url)
 	if err != nil {
 		fmt.Println(err.Error())
-		return "", fmt.Errorf("Failed to visit url : %s", novelUrl)
+		return "", fmt.Errorf("failed to visit url : %s", novelUrl)
 	}
 
 	if nbFound == 1 {
@@ -69,12 +67,12 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML(".btn-read-now", func(e *colly.HTMLElement) {
-		novelMetaData.FirstChapterURL = readNovelURL + e.Attr("href")
+		novelMetaData.FirstURL = readNovelURL + e.Attr("href")
 	})
 
 	scraper.collector.OnHTML("#tab-description", func(e *colly.HTMLElement) {
 		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
-			novelMetaData.Summary = append(novelMetaData.Summary, paragraph.Text)
+			novelMetaData.Summary += paragraph.Text
 		})
 	})
 
@@ -162,7 +160,7 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 	}
 
 	i := 1
-	url := data.FirstChapterURL
+	url := data.FirstURL
 	if startChapter != 1 {
 		i = data.CurrentChapter
 		url = data.NextURL
@@ -199,7 +197,7 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 
 // CanScrapeNovel check if novel is on the webSite
 func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
-	fmt.Printf("CanScrapeNovel : %s", novelName)
+	fmt.Printf("CanScrapeNovel : %s\n", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))
 	novelUrl, err := scraper.findNovelUrl(novelName)
 
@@ -208,6 +206,5 @@ func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
 		return false
 	}
 
-	fmt.Println(novelUrl)
 	return len(novelUrl) > 0
 }
