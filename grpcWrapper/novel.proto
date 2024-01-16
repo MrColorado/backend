@@ -12,6 +12,7 @@ message Chapter {
 }
 
 message PartialNovel {
+    string id = 1;
     string title = 2;
     string author = 3;
     string summary = 4;
@@ -20,11 +21,10 @@ message PartialNovel {
 }
 
 message FullNovel {
-    string id = 1;
-    PartialNovel novel = 2;
-    int64 nbChapter = 3;
-    repeated string tags = 4;
-    repeated Chapter chapters = 5;
+    PartialNovel novel = 1;
+    int64 nbChapter = 2;
+    repeated string tags = 3;
+    repeated Chapter chapters = 4;
 }
 
 // Request / Response
@@ -39,7 +39,10 @@ message GetBookResponse {
 }
 
 message GetNovelRequest{
-    string title = 1;
+    oneof oneof_id_or_name {
+        string id = 1;
+        string title = 2;
+    }
 }
 
 message GetNovelResponse {

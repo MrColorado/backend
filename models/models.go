@@ -17,6 +17,7 @@ type BookData struct {
 }
 
 type PartialNovelData struct {
+	Id         string
 	Title      string
 	Author     string
 	CoverPath  string
@@ -26,7 +27,6 @@ type PartialNovelData struct {
 }
 
 type NovelData struct {
-	Id             string
 	CoreData       PartialNovelData
 	NbChapter      int
 	CurrentChapter int

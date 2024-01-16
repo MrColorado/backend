@@ -44,19 +44,19 @@ func (sm *ScraperManager) AddScraper(name string) error {
 	return nil
 }
 
-func (sm *ScraperManager) CanScrape(novelName string) bool {
-	canScrape := false
+func (sm *ScraperManager) CanScrape(novelName string) (string, bool) {
+	name := ""
 
 	sm.mu.Lock()
 	for _, scraper := range sm.metaScrapers {
 		if scraper.CanScrapeNovel(novelName) {
-			canScrape = true
+			name = scraper.GetName()
 			break
 		}
 	}
 	sm.mu.Unlock()
 
-	return canScrape
+	return name, len(name) > 0
 }
 
 func (sm *ScraperManager) Scrape(scraperName string, novelName string) error {

@@ -13,6 +13,7 @@ import (
 	"github.com/MrColorado/epubScraper/converter"
 	"github.com/MrColorado/epubScraper/file"
 	"github.com/MrColorado/epubScraper/grpcWrapper/novelpb"
+	"github.com/MrColorado/epubScraper/models"
 	"github.com/MrColorado/epubScraper/scraper"
 	"github.com/MrColorado/epubScraper/utils"
 	"google.golang.org/grpc"
@@ -26,7 +27,7 @@ const (
 
 type Server struct {
 	io        utils.S3IO
-	scraper   scraper.Scraper
+	scrpMgr   *scraper.ScraperManager
 	converter converter.Converter
 
 	novelpb.UnimplementedNovelServerServer
@@ -36,10 +37,10 @@ func formatName(novelName string) string {
 	return strings.TrimSpace(strings.ToLower(novelName))
 }
 
-func NewSever(io utils.S3IO, scraper scraper.Scraper, converter converter.Converter) *Server {
+func NewSever(io utils.S3IO, scrpMgr *scraper.ScraperManager, converter converter.Converter) *Server {
 	return &Server{
 		io:        io,
-		scraper:   scraper,
+		scrpMgr:   scrpMgr,
 		converter: converter,
 	}
 }
@@ -89,15 +90,22 @@ Loop:
 }
 
 func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
-	fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
-
-	data, err := server.io.GetNovel(formatName(req.GetTitle()))
+	var err error
+	var data models.NovelData
+	switch req.OneofIdOrName.(type) {
+	case *novelpb.GetNovelRequest_Id:
+		fmt.Println("Novel Service - Called GetNovel : ", req.GetId())
+		data, err = server.io.GetNovelById(req.GetId())
+	case *novelpb.GetNovelRequest_Title:
+		fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
+		data, err = server.io.GetNovelByTitle(req.GetTitle())
+	}
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	chaptersData, err := server.io.ListBooks(data.CoreData.Title)
+	chaptersData, err := server.io.ListBooks(data.CoreData.Id)
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
@@ -114,6 +122,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 	return &novelpb.GetNovelResponse{
 		Novel: &novelpb.FullNovel{
 			Novel: &novelpb.PartialNovel{
+				Id:       data.CoreData.Id,
 				Title:    data.CoreData.Title,
 				Author:   data.CoreData.Author,
 				Summary:  data.CoreData.Summary,
@@ -138,7 +147,9 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
+		fmt.Printf("Id : %s\n", data.Id)
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
+			Id:       data.Id,
 			Title:    data.Title,
 			Author:   data.Author,
 			Summary:  data.Summary,
@@ -153,12 +164,13 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
 	fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
 
-	if !server.scraper.CanScrapeNovel(req.GetTitle()) {
-		fmt.Println("Faield to scrape novel")
+	name, ok := server.scrpMgr.CanScrape(req.GetTitle())
+	if !ok {
+		fmt.Println("Faled to scrape novel")
 		return &novelpb.RequestNovelResponse{Success: false}, status.Error(codes.NotFound, "Not found")
 	}
 
-	go server.scraper.ScrapeNovel(req.GetTitle())
+	go server.scrpMgr.Scrape(name, req.GetTitle())
 	return &novelpb.RequestNovelResponse{Success: true}, nil
 }
 

@@ -73,7 +73,7 @@ func (io S3IO) ExportBook(novelName string, bookName string, content []byte, met
 		return fmt.Errorf("failed to get novel %s", novelName)
 	}
 
-	metaData.NovelId = novelData.Id
+	metaData.NovelId = novelData.CoreData.Id
 	err = io.dbClient.InsertOrUpdateBook(metaData)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -128,7 +128,16 @@ func (io S3IO) NumberOfChapter(novelName string) (int, error) {
 	return len(filesName), nil
 }
 
-func (io S3IO) GetNovel(novelName string) (models.NovelData, error) {
+func (io S3IO) GetNovelById(id string) (models.NovelData, error) {
+	data, err := io.dbClient.GetNovelById(id)
+	if err != nil {
+		fmt.Println(err.Error())
+		return models.NovelData{}, fmt.Errorf("failed to get meta_data of novel %s", id)
+	}
+	return data, nil
+}
+
+func (io S3IO) GetNovelByTitle(novelName string) (models.NovelData, error) {
 	data, err := io.dbClient.GetNovelByTitle(novelName)
 	if err != nil {
 		fmt.Println(err.Error())

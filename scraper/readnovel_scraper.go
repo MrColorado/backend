@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	ReadNovelScraperName        = "ReadNovel"
-	readNovelURL         string = "https://readnovelfull.com"
+	ReadNovelScraperName = "ReadNovel"
+	readNovelURL         = "https://readnovelfull.com"
 )
 
 type ReadNovelScraper struct {
@@ -182,6 +182,11 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 			return
 		}
 	}
+}
+
+// GetName return name of scraper
+func (scraper ReadNovelScraper) GetName() string {
+	return ReadNovelScraperName
 }
 
 // ScrapeNovel get each chapter of a specific novel

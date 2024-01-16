@@ -76,7 +76,7 @@ func (t *workerPool) createPool() error {
 		scraper, err := ScraperCreator(t.scraperName)
 		if err != nil {
 			fmt.Println(err.Error())
-			return fmt.Errorf("failed to create worker poll for %s scraper", t.scraperName)
+			return fmt.Errorf("failed to create worker pool for %s scraper", t.scraperName)
 		}
 
 		worker := newWorker(scraper, t.workerPool, t.closeHandle)

@@ -18,9 +18,8 @@ import (
 )
 
 type novelAuthor struct {
-	gen_models.Novel  `boil:",bind"`
-	gen_models.Author `boil:",bind"` // nolint
-	// author           `boil:",author_name"`
+	gen_models.Novel `boil:",bind"`
+	AuthorName       string `boil:"name"`
 }
 
 type PostgresClient struct {
@@ -112,7 +111,7 @@ func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) 
 	var na novelAuthor
 
 	err := gen_models.NewQuery(
-		qm.Select("novel.nb_chapter", "novel.title", "author.name", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
+		qm.Select("author.name as name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
 		qm.From("novel"),
 		qm.InnerJoin("author on author.id = novel.fk_author_id"),
 		qm.Where("novel.id = ?", id),
@@ -125,8 +124,9 @@ func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) 
 
 	return models.NovelData{
 		CoreData: models.PartialNovelData{
+			Id:         na.ID,
 			Title:      na.Title,
-			Author:     na.Name,
+			Author:     na.AuthorName,
 			CoverPath:  na.CoverPath,
 			Summary:    na.Summary,
 			LastUpdate: na.LastUpdate,
@@ -142,7 +142,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	var na novelAuthor
 
 	err := gen_models.NewQuery(
-		qm.Select("novel.nb_chapter", "novel.title", "author.name", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
+		qm.Select("author.name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
 		qm.From("novel"),
 		qm.InnerJoin("author on author.id = novel.fk_author_id"),
 		qm.Where("novel.title = ?", title),
@@ -155,8 +155,9 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 
 	return models.NovelData{
 		CoreData: models.PartialNovelData{
+			Id:         na.ID,
 			Title:      na.Title,
-			Author:     na.Name,
+			Author:     na.AuthorName,
 			CoverPath:  na.CoverPath,
 			Summary:    na.Summary,
 			LastUpdate: na.LastUpdate,
@@ -193,6 +194,7 @@ func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNove
 			genres = append(genres, genre.Name)
 		}
 		res = append(res, models.PartialNovelData{
+			Id:         novel.ID,
 			Title:      novel.Title,
 			CoverPath:  novel.CoverPath,
 			Summary:    novel.Summary,

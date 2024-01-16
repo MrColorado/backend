@@ -10,6 +10,7 @@ import (
 
 // Scraper of each website should implement this interface
 type Scraper interface {
+	GetName() string
 	ScrapeNovel(novelName string)
 	CanScrapeNovel(novelName string) bool
 }
