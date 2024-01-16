@@ -28,13 +28,26 @@ func (converter EpubConverter) convertMetaData(e *epub.Epub, novelName string) e
 		return fmt.Errorf("failed to import metaData for novel %s", novelName)
 	}
 
-	e.SetAuthor(data.Author)
-	summary := ""
-	for _, paragraph := range data.Summary {
-		summary += fmt.Sprintf("<p>%s</p>", paragraph)
+	url, err := converter.io.GetCover(novelName)
+	if err != nil {
+		println(err.Error())
+		return fmt.Errorf("failed to import cover inside novel %s", novelName)
 	}
-	e.SetDescription(summary)
+	imgPath, err := e.AddImage(url, "")
+	if err != nil {
+		println(err.Error())
+		return fmt.Errorf("failed to import cover inside novel %s", novelName)
+	}
+	coverCSSPath, err := e.AddCSS("./converter/epub.css", "")
+	if err != nil {
+		println(err.Error())
+		return fmt.Errorf("failed to import cover inside novel %s", novelName)
+	}
 
+	e.SetAuthor(data.Author)
+	e.SetTitle(novelName)
+	e.SetCover(imgPath, coverCSSPath)
+	e.SetDescription(fmt.Sprintf("<p>%s</p>", data.Summary))
 	return nil
 }
 
@@ -51,7 +64,7 @@ func (converter EpubConverter) convertToNovel(novelName string, startChapter int
 			continue
 		}
 
-		bodySection := fmt.Sprintf("<h1>Chapter %d</h1>", chapterData.Chapter)
+		bodySection := fmt.Sprintf("<h1>Chapter %d</h1>", i)
 		for _, paragraph := range chapterData.Paragraph {
 			bodySection += fmt.Sprintf("<p>%s</p>", paragraph)
 		}

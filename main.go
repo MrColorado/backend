@@ -52,7 +52,7 @@ func main() {
 	io := utils.NewS3IO(awsClient, postgresClient)
 	var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
 
-	conv.ConvertNovel("big life")
+	conv.ConvertPartialNovel("big life", 1, 100)
 }
 
 // "/s3/novels/under the oak tree/epub/under the oak tree-0001-0100.epub"

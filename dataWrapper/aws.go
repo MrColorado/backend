@@ -35,6 +35,7 @@ func NewAwsClient(awsConfig configuration.AwsConfigStruct) *AwsClient {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsConfig.S3UserName, awsConfig.S3Password, "")),
+		config.WithRegion("auto"),
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -96,7 +97,7 @@ func (client *AwsClient) ListFiles(filePath string) ([]string, error) {
 		for _, data := range resp.Contents {
 			filesName = append(filesName, *data.Key)
 		}
-		if !resp.IsTruncated {
+		if !*resp.IsTruncated {
 			break
 		}
 		continuationToken = resp.NextContinuationToken
