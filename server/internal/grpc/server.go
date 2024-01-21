@@ -1,112 +1,72 @@
-//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb novel.proto
+//go:generate protoc --go_out=novelpb --go-grpc_out=novelpb ./protocol/novel.proto
 
-package grpcWrapper
+package grpc
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
-	"strings"
 
-	"github.com/MrColorado/backend/server/file"
-	"github.com/MrColorado/backend/server/grpcWrapper/novelpb"
-	"github.com/MrColorado/backend/server/models"
-	"github.com/MrColorado/backend/server/utils"
+	"github.com/MrColorado/backend/server/internal/core"
+	"github.com/MrColorado/backend/server/internal/grpc/novelpb"
+	"github.com/MrColorado/backend/server/internal/models"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-const (
-	chunkSize = 1048576 // 1 MB
-)
-
 type Server struct {
-	io utils.S3IO
+	app *core.App
 
 	novelpb.UnimplementedNovelServerServer
 }
 
-func formatName(novelName string) string {
-	return strings.TrimSpace(strings.ToLower(novelName))
-}
-
-func NewSever(io utils.S3IO) *Server {
+func NewSever(app *core.App) *Server {
 	return &Server{
-		io: io,
+		app: app,
 	}
 }
 
-func (server *Server) GetBook(req *novelpb.GetBookRequest, bookServer novelpb.NovelServer_GetBookServer) error {
+func (server *Server) GetBook(ctx context.Context, req *novelpb.GetBookRequest) (*novelpb.GetBookResponse, error) {
 	fmt.Println("Novel Service - Called GetBook : ", req.GetNovelId())
 
-	data, err := server.io.ImportMetaDataById(req.NovelId)
+	content, title, err := server.app.GetBook(req.NovelId, int(req.Chapter.Start), int(req.Chapter.End))
 	if err != nil {
-		fmt.Println(err.Error())
-		return status.Error(codes.NotFound, "Not found")
+		return &novelpb.GetBookResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	content, err := server.io.GetBook(data.Title, int(req.GetChapter().GetStart()), int(req.GetChapter().GetEnd()))
-	if err != nil {
-		fmt.Println(err.Error())
-		return status.Error(codes.NotFound, "Not found")
-	}
-
-	f := file.NewFile(fmt.Sprintf("%s-%04d-%04d.epub", data.Title, req.GetChapter().GetStart(), req.GetChapter().GetEnd()), "epub", len(content), bytes.NewReader(content))
-	err = bookServer.SendHeader(f.Metadata())
-	if err != nil {
-		return status.Error(codes.Internal, "error during sending header")
-	}
-
-	var n int
-	chunk := &novelpb.GetBookResponse{Chunk: make([]byte, chunkSize)}
-
-Loop:
-	for {
-		n, err = f.Read(chunk.Chunk)
-		switch err {
-		case nil:
-		case io.EOF:
-			break Loop
-		default:
-			return status.Errorf(codes.Internal, "io.ReadAll: %v", err)
-		}
-		chunk.Chunk = chunk.Chunk[:n]
-		serverErr := bookServer.Send(chunk)
-		if serverErr != nil {
-			return status.Errorf(codes.Internal, "server.Send: %v", serverErr)
-		}
-	}
-
-	return nil
+	response := novelpb.GetBookResponse{}
+	response.Content = content
+	response.Title = title
+	return &response, nil
 }
 
 func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest) (*novelpb.GetNovelResponse, error) {
 	var err error
 	var data models.NovelData
+
 	switch req.OneofIdOrName.(type) {
 	case *novelpb.GetNovelRequest_Id:
 		fmt.Println("Novel Service - Called GetNovel : ", req.GetId())
-		data, err = server.io.GetNovelById(req.GetId())
+		data, err = server.app.GetNovelById(req.GetId())
 	case *novelpb.GetNovelRequest_Title:
 		fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
-		data, err = server.io.GetNovelByTitle(req.GetTitle())
+		data, err = server.app.GetNovelByTitle(req.GetTitle())
 	}
+
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	chaptersData, err := server.io.ListBooks(data.CoreData.Id)
+	chpData, err := server.app.ListBook(data.CoreData.Id)
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
 	var chapters []*novelpb.Chapter
-	for _, chapter := range chaptersData {
+	for _, chapter := range chpData {
 		chapters = append(chapters, &novelpb.Chapter{
 			Start: int64(chapter.Start),
 			End:   int64(chapter.End),
@@ -120,7 +80,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 				Title:    data.CoreData.Title,
 				Author:   data.CoreData.Author,
 				Summary:  data.CoreData.Summary,
-				CoverURL: "data.CoreData.CoverPath", // TODO GetPreSigned maybe not here
+				CoverURL: data.CoreData.CoverPath,
 				Genres:   data.CoreData.Genres,
 			},
 			NbChapter: int64(data.NbChapter),
@@ -133,7 +93,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelRequest) (*novelpb.ListNovelResponse, error) {
 	fmt.Println("Novel Service - Called ListNovel")
 
-	datas, err := server.io.ListNovels(req.GetStartBy())
+	datas, err := server.app.ListNovels(req.GetStartBy())
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.ListNovelResponse{}, status.Error(codes.NotFound, "Not found")
@@ -141,13 +101,12 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
-		fmt.Printf("Id : %s\n", data.Id)
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
 			Id:       data.Id,
 			Title:    data.Title,
 			Author:   data.Author,
 			Summary:  data.Summary,
-			CoverURL: "data.CoverPath", // TODO coverURL
+			CoverURL: data.CoverPath,
 			Genres:   data.Genres,
 		})
 	}
@@ -185,5 +144,4 @@ func (server *Server) Run() {
 	if err != nil {
 		fmt.Println("Novel Service - ERROR:", err.Error())
 	}
-
 }

@@ -1,19 +1,15 @@
 package main
 
 import (
-	"github.com/MrColorado/backend/server/configuration"
-	"github.com/MrColorado/backend/server/dataWrapper"
-	"github.com/MrColorado/backend/server/grpcWrapper"
-	"github.com/MrColorado/backend/server/utils"
+	"github.com/MrColorado/backend/server/internal/config"
+	"github.com/MrColorado/backend/server/internal/core"
+	"github.com/MrColorado/backend/server/internal/dataStore"
+	"github.com/MrColorado/backend/server/internal/grpc"
 )
 
 func main() {
-	config := configuration.GetConfig()
-	awsClient := dataWrapper.NewAwsClient(config.AwsConfig)
-	postgresClient := dataWrapper.NewPostgresClient(config.PostgresConfig)
-
-	io := utils.NewS3IO(awsClient, postgresClient)
-
-	server := grpcWrapper.NewSever(io)
+	cfg := config.GetConfig()
+	app := core.NewApp(dataStore.NewS3Client(cfg.AwsConfig), dataStore.NewPostgresClient(cfg.PostgresConfig))
+	server := grpc.NewSever(app)
 	server.Run()
 }

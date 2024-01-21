@@ -30,8 +30,18 @@ services:
     volumes:
       - ./volumes/postgres/:/var/lib/postgresql/data/
 
+  nats:
+    image: nats:2.10
+    container_name: nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
   envoy:
-    image: envoy-v1
+    build:
+      context: ./envoy
+      dockerfile: ./Dockerfile
+    image: envoy
     container_name: envoy
     expose:
       - "8080"
@@ -40,9 +50,27 @@ services:
       - "8080:8080"
       - "8081:8081"
 
-  scraper:
-    image: scraper-v1
-    container_name: scraper
+  bookHandler:
+    build:
+      context: ./bookHandler
+      dockerfile: Dockerfile
+    image: book_handler
+    container_name: bookHandler
+    environment:
+      S3_HOST: http://s3:9000
+      S3_USERNAME: ${S3_USERNAME}
+      S3_PASSWORD: ${S3_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: database
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: server
+    container_name: server
     environment:
       S3_HOST: http://s3:9000
       S3_USERNAME: ${S3_USERNAME}

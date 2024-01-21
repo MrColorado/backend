@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download
+# RUN go generate ./... TODO we should find a way to do it here
 
 COPY . .
 

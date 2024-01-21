@@ -1,18 +1,17 @@
-//go:generate sqlboiler -c schemas/sqlboiler.toml --wipe psql
+//go:generate sqlboiler -c ./../../../schemas/sqlboiler.toml --wipe psql
 
-package dataWrapper
+package dataStore
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	_ "github.com/lib/pq"
 
-	"github.com/MrColorado/backend/server/configuration"
-	"github.com/MrColorado/backend/server/dataWrapper/gen_models"
-	"github.com/MrColorado/backend/server/models"
+	"github.com/MrColorado/backend/server/internal/config"
+	"github.com/MrColorado/backend/server/internal/dataStore/gen_models"
+	"github.com/MrColorado/backend/server/internal/models"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -26,85 +25,16 @@ type PostgresClient struct {
 	db *sql.DB
 }
 
-func NewPostgresClient(config configuration.PostgresConfigStruct) *PostgresClient {
-	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost))
+func NewPostgresClient(cfg config.PostgresConfigStruct) *PostgresClient {
+	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", cfg.PostgresDB, cfg.PostgresUser, cfg.PostgresPassword, cfg.PostgresHost))
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	boil.SetDB(db)
-
 	return &PostgresClient{
 		db: db,
 	}
-}
-
-// Todo update NovelMetaData to NovelData
-func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) error {
-	author := gen_models.Author{
-		Name: data.Author,
-	}
-	err := author.Upsert(context.TODO(), client.db, false, nil, boil.Whitelist(), boil.Infer())
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
-	}
-	if author.ID == 0 {
-		atr, err := gen_models.Authors(gen_models.AuthorWhere.Name.EQ(data.Author)).One(context.TODO(), client.db)
-		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("failed to get author %s", data.Author)
-		}
-		author.ID = atr.ID
-	}
-
-	// Todo handle tags and genres
-	novel := gen_models.Novel{
-		Title:          data.Title,
-		Summary:        data.Summary,
-		FirstURL:       data.FirstURL,
-		NextURL:        data.NextURL,
-		CoverPath:      data.CoverPath,
-		NBChapter:      data.NbChapter,
-		CurrentChapter: data.CurrentChapter,
-		LastUpdate:     time.Now(),
-		FKAuthorID:     author.ID,
-	}
-	err = novel.Upsert(context.TODO(), client.db, true, []string{"title"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
-	}
-	return nil
-}
-
-func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
-	// TODO migrate this to request in on sequence in order to keep data coherent even if one fail
-	now := time.Now()
-	book := gen_models.Book{
-		FKNovelID:  data.NovelId,
-		End:        data.End,
-		Start:      data.Start,
-		LastUpdate: now,
-	}
-
-	err := book.Upsert(context.TODO(), client.db, true, []string{"fk_novel_id", "start"}, boil.Greylist("end", "last_update"), boil.Infer())
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelId, data.Start, data.End)
-	}
-
-	novel := gen_models.Novel{
-		ID:         data.NovelId,
-		LastUpdate: now,
-	}
-	_, err = novel.Update(context.TODO(), client.db, boil.Whitelist("last_update"))
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to update last_update for for novel %s", data.NovelId)
-	}
-
-	return nil
 }
 
 func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) {

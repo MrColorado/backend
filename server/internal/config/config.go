@@ -1,4 +1,4 @@
-package configuration
+package config
 
 import "os"
 
@@ -15,17 +15,9 @@ type PostgresConfigStruct struct {
 	PostgresHost     string
 }
 
-type ScraperConfigStruct struct {
-}
-
-type ConverterConfigStruct struct {
-}
-
 type Config struct {
-	AwsConfig       AwsConfigStruct
-	ScraperConfig   ScraperConfigStruct
-	PostgresConfig  PostgresConfigStruct
-	ConverterConfig ConverterConfigStruct
+	AwsConfig      AwsConfigStruct
+	PostgresConfig PostgresConfigStruct
 }
 
 func GetConfig() Config {

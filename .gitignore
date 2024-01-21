@@ -16,7 +16,7 @@
 
 # Generated files 
 gen_models
-*.pb.go
+# *.pb.go TODO find how to generate proto files in docker, we should not push generated files
 
 .env
 .vscode
@@ -26,3 +26,4 @@ volumes
 go.work.sum
 bookMaker/bookMaker
 server/server
+schemas/old_novel_schema.sql
