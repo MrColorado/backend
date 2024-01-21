@@ -18,8 +18,11 @@
 gen_models
 *.pb.go
 
-
-epubScraper
-volumes
 .env
 .vscode
+
+volumes
+
+go.work.sum
+bookMaker/bookMaker
+server/server

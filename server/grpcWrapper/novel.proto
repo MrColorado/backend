@@ -1,0 +1,73 @@
+syntax = "proto3";
+package novel;
+option go_package="./;novelpb";
+
+message Author {
+    string name = 1;
+}
+
+message Chapter {
+    int64 start = 1;
+    int64 end = 2;
+}
+
+message PartialNovel {
+    string id = 1;
+    string title = 2;
+    string author = 3;
+    string summary = 4;
+    string coverURL = 5;
+    repeated string genres = 6;
+}
+
+message FullNovel {
+    PartialNovel novel = 1;
+    int64 nbChapter = 2;
+    repeated string tags = 3;
+    repeated Chapter chapters = 4;
+}
+
+// Request / Response
+
+message GetBookRequest {
+    string novelId = 1;
+    Chapter chapter = 2;
+}
+
+message GetBookResponse {
+    bytes chunk = 1;
+}
+
+message GetNovelRequest{
+    oneof oneof_id_or_name {
+        string id = 1;
+        string title = 2;
+    }
+}
+
+message GetNovelResponse {
+    FullNovel novel = 1;
+}
+
+message ListNovelRequest {
+    optional string startBy = 1; 
+ }
+
+message ListNovelResponse {
+    repeated PartialNovel novels = 1;
+}
+
+message RequestNovelRequest {
+    string title = 1;
+}
+
+message RequestNovelResponse {
+    bool success = 1;
+}
+
+service NovelServer{
+    rpc GetBook(GetBookRequest) returns (stream GetBookResponse) {};
+    rpc GetNovel(GetNovelRequest) returns (GetNovelResponse) {};
+    rpc ListNovel(ListNovelRequest) returns (ListNovelResponse) {};
+    rpc RequestNovel(RequestNovelRequest) returns (RequestNovelResponse) {};
+}

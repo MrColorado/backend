@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/MrColorado/epubScraper/configuration"
-	"github.com/MrColorado/epubScraper/converter"
-	"github.com/MrColorado/epubScraper/dataWrapper"
-	"github.com/MrColorado/epubScraper/utils"
+	"github.com/MrColorado/backend/configuration"
+	"github.com/MrColorado/backend/converter"
+	"github.com/MrColorado/backend/dataWrapper"
+	"github.com/MrColorado/backend/utils"
 )
 
 // func main() {
