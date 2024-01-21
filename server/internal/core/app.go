@@ -1,18 +1,21 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/MrColorado/backend/server/internal/dataStore"
+	"github.com/MrColorado/backend/server/internal/dataHandler"
 	"github.com/MrColorado/backend/server/internal/models"
+	"github.com/MrColorado/backend/server/message"
 )
 
 type App struct {
-	s3 *dataStore.S3Client
-	db *dataStore.PostgresClient
+	s3   *dataHandler.S3Client
+	db   *dataHandler.PostgresClient
+	nats *dataHandler.NatsClient
 }
 
-func NewApp(s3 *dataStore.S3Client, db *dataStore.PostgresClient) *App {
+func NewApp(s3 *dataHandler.S3Client, db *dataHandler.PostgresClient) *App {
 	return &App{
 		s3: s3,
 		db: db,
@@ -102,6 +105,44 @@ func (app *App) ListBook(ID string) ([]models.BookData, error) {
 	return books, nil
 }
 
-func (app *App) RequestNovel() (bool, error) {
-	return false, nil
+func (app *App) RequestNovel(title string) error {
+	out, err := json.Marshal(message.OutCanScrape{
+		Title: title,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshal request")
+	}
+
+	resp, err := app.nats.Request("scrapable", out)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to request on nats")
+	}
+
+	var in message.InCanScrape
+	err = json.Unmarshal(resp, &in)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to unmarshal response")
+	}
+
+	if len(in.ScraperName) == 0 {
+		return fmt.Errorf("can not scrape novel %s", title)
+	}
+
+	out, err = json.Marshal(message.OutScrapeNovel{
+		Title: title,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to marshal request")
+	}
+
+	err = app.nats.PublishMsg(fmt.Sprintf("scraper:%s", in.ScraperName), out)
+	if err != nil {
+		fmt.Println(err.Error())
+		return fmt.Errorf("failed to publish msg")
+	}
+	return nil
 }

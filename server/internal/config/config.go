@@ -15,9 +15,14 @@ type PostgresConfigStruct struct {
 	PostgresHost     string
 }
 
+type NatsConfigStruct struct {
+	NatsHOST string
+}
+
 type Config struct {
 	AwsConfig      AwsConfigStruct
 	PostgresConfig PostgresConfigStruct
+	NatsConfig     NatsConfigStruct
 }
 
 func GetConfig() Config {
@@ -32,6 +37,8 @@ func GetConfig() Config {
 			PostgresUser:     os.Getenv("POSTGRES_USER"),
 			PostgresPassword: os.Getenv("POSTGRES_PASSWORD"),
 			PostgresHost:     os.Getenv("POSTGRES_HOST"),
+		}, NatsConfig: NatsConfigStruct{
+			NatsHOST: os.Getenv("NATS_HOST"),
 		},
 	}
 	return config

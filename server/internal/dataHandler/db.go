@@ -1,6 +1,6 @@
 //go:generate sqlboiler -c ./../../../schemas/sqlboiler.toml --wipe psql
 
-package dataStore
+package dataHandler
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/MrColorado/backend/server/internal/config"
-	"github.com/MrColorado/backend/server/internal/dataStore/gen_models"
+	"github.com/MrColorado/backend/server/internal/dataHandler/gen_models"
 	"github.com/MrColorado/backend/server/internal/models"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"

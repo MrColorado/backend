@@ -114,16 +114,13 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 	return &response, nil
 }
 
-func (server *Server) RequestNovel(_ context.Context, _ *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
-	// fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
-
-	// name, ok := server.scrpMgr.CanScrape(req.GetTitle())
-	// if !ok {
-	// 	fmt.Println("Faled to scrape novel")
-	// 	return &novelpb.RequestNovelResponse{Success: false}, status.Error(codes.NotFound, "Not found")
-	// }
-
-	// go server.scrpMgr.Scrape(name, req.GetTitle())
+func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
+	fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
+	err := server.app.RequestNovel(req.Title)
+	if err != nil {
+		fmt.Println(err.Error())
+		return &novelpb.RequestNovelResponse{Success: false}, nil
+	}
 	return &novelpb.RequestNovelResponse{Success: true}, nil
 }
 
