@@ -116,7 +116,9 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
 	fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
+	fmt.Println("Before")
 	err := server.app.RequestNovel(req.Title)
+	fmt.Println("After")
 	if err != nil {
 		fmt.Println(err.Error())
 		return &novelpb.RequestNovelResponse{Success: false}, nil

@@ -1,21 +1,27 @@
-FROM golang:1.21 as builder
+# syntax=docker/dockerfile:experimental
+FROM golang:bookworm as builder_base
 
-ENV GOOS linux
-ENV CGO_ENABLED 0
+ENV GOPRIVATE="github.com/MrColorado"
+ARG DIRECTORY
 
-WORKDIR /app
+WORKDIR /go/src/github.com/MrColorado/backend/server
 
-COPY go.mod go.sum ./
+COPY ${DIRECTORY}/go.mod .
+COPY ${DIRECTORY}/go.sum .
+COPY internal/go.mod /go/src/github.com/MrColorado/backend/internal/go.mod
 RUN go mod download
-# RUN go generate ./... TODO we should find a way to do it here
 
-COPY . .
+# Build image
+FROM builder_base as builder
 
-RUN go build -o app
+COPY ${DIRECTORY}/. .
+COPY internal/ /go/src/github.com/MrColorado/backend/internal/
+RUN make install
 
-FROM scratch
+# Deployment image
+FROM golang:bookworm
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder app .
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /go/bin/server /service
 
-ENTRYPOINT ["./app"]
+ENTRYPOINT ["/service"]

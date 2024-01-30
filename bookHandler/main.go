@@ -1,19 +1,33 @@
 package main
 
 import (
-	"github.com/MrColorado/backend/bookHandler/configuration"
-	"github.com/MrColorado/backend/bookHandler/converter"
-	"github.com/MrColorado/backend/bookHandler/dataWrapper"
-	"github.com/MrColorado/backend/bookHandler/utils"
+	"context"
+	"fmt"
+
+	"github.com/MrColorado/backend/bookHandler/internal/config"
+	"github.com/MrColorado/backend/bookHandler/internal/converter"
+	"github.com/MrColorado/backend/bookHandler/internal/handler"
+	"github.com/MrColorado/backend/bookHandler/internal/scraper"
+)
+
+var (
+	scrpCfg = map[string]int{
+		scraper.ReadNovelScraperName: 2,
+	}
+	convsName = []string{converter.EpubConverterName}
 )
 
 func main() {
-	config := configuration.GetConfig()
-	awsClient := dataWrapper.NewAwsClient(config.AwsConfig)
-	postgresClient := dataWrapper.NewPostgresClient(config.PostgresConfig)
-
-	io := utils.NewS3IO(awsClient, postgresClient)
-	var conv converter.Converter = converter.NewEpubConverter(config.ConverterConfig, io)
-
-	conv.ConvertPartialNovel("big life", 1, 100)
+	config := config.GetConfig()
+	nats, err := handler.NewNatsClient(config.NatsConfig, context.TODO())
+	if err != nil {
+		fmt.Printf(err.Error())
+		return
+	}
+	manager, err := handler.NewScraperManager(nats, scrpCfg, convsName)
+	if err != nil {
+		fmt.Printf(err.Error())
+		return
+	}
+	manager.Run()
 }

@@ -13,6 +13,7 @@ type NatsClient struct {
 }
 
 func NewNatsClient(cfg config.NatsConfigStruct) (*NatsClient, error) {
+	fmt.Printf("Connect to nats at : %s\n", cfg.NatsHOST)
 	conn, err := nats.Connect(cfg.NatsHOST)
 	if err != nil {
 		fmt.Println(err.Error())

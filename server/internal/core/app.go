@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	msgType "github.com/MrColorado/backend/internal/message"
 	"github.com/MrColorado/backend/server/internal/dataHandler"
 	"github.com/MrColorado/backend/server/internal/models"
-	"github.com/MrColorado/backend/server/message"
 )
 
 type App struct {
@@ -15,10 +15,11 @@ type App struct {
 	nats *dataHandler.NatsClient
 }
 
-func NewApp(s3 *dataHandler.S3Client, db *dataHandler.PostgresClient) *App {
+func NewApp(s3 *dataHandler.S3Client, db *dataHandler.PostgresClient, nats *dataHandler.NatsClient) *App {
 	return &App{
-		s3: s3,
-		db: db,
+		s3:   s3,
+		db:   db,
+		nats: nats,
 	}
 }
 
@@ -106,21 +107,27 @@ func (app *App) ListBook(ID string) ([]models.BookData, error) {
 }
 
 func (app *App) RequestNovel(title string) error {
-	out, err := json.Marshal(message.OutCanScrape{
-		Title: title,
+	fmt.Println("A")
+	out, err := json.Marshal(msgType.Message{
+		Event: "can_scrape",
+		Payload: msgType.CanScrapeRqt{
+			Title: title,
+		},
 	})
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to marshal request")
 	}
 
+	fmt.Println("B")
 	resp, err := app.nats.Request("scrapable", out)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to request on nats")
 	}
 
-	var in message.InCanScrape
+	fmt.Println("C")
+	var in msgType.CanScrapeRsp
 	err = json.Unmarshal(resp, &in)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -131,18 +138,23 @@ func (app *App) RequestNovel(title string) error {
 		return fmt.Errorf("can not scrape novel %s", title)
 	}
 
-	out, err = json.Marshal(message.OutScrapeNovel{
-		Title: title,
+	out, err = json.Marshal(msgType.Message{
+		Event: "scrape",
+		Payload: msgType.ScrapeNovelRqt{
+			NovelTitle: title,
+		},
 	})
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to marshal request")
 	}
 
+	fmt.Println("D")
 	err = app.nats.PublishMsg(fmt.Sprintf("scraper:%s", in.ScraperName), out)
 	if err != nil {
 		fmt.Println(err.Error())
 		return fmt.Errorf("failed to publish msg")
 	}
+	fmt.Println("E")
 	return nil
 }
