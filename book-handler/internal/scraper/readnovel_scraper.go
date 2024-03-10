@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MrColorado/backend/bookHandler/internal/core"
-	"github.com/MrColorado/backend/bookHandler/internal/models"
+	"github.com/MrColorado/backend/book-handler/internal/core"
+	"github.com/MrColorado/backend/book-handler/internal/models"
+	"github.com/MrColorado/backend/logger"
 	"github.com/gocolly/colly/v2"
 )
 
@@ -36,8 +37,7 @@ func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
 
 	err := scraper.collector.Visit(url)
 	if err != nil {
-		fmt.Println(err.Error())
-		return "", fmt.Errorf("failed to visit url : %s", novelUrl)
+		return "", logger.Errorf("failed to visit url %s : %s", novelUrl, err.Error())
 	}
 
 	if nbFound == 1 {
@@ -47,7 +47,7 @@ func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
 }
 
 func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
-	fmt.Printf("Scrape metaData : %s\n", url)
+	logger.Infof("Scrape metaData : %s", url)
 	novelMetaData.CurrentChapter = 1
 
 	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
@@ -101,7 +101,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 }
 
 func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
-	fmt.Printf("Scrape : %s\n", url)
+	logger.Infof("Scrape : %s", url)
 	nextURL := ""
 
 	scraper.collector.OnHTML("#next_chap", func(e *colly.HTMLElement) {
@@ -149,7 +149,7 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		}
 
 		if data.Title == "" {
-			fmt.Printf("Failed to get page of novel %s\n", novelName)
+			logger.Warnf("Failed to get page of novel %s", novelName)
 			return
 		}
 		if scraper.app.ExportMetaData(data.Title, data) != nil {
@@ -200,12 +200,11 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 
 // CanScrapeNovel check if novel is on the webSite
 func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
-	fmt.Printf("CanScrapeNovel : %s\n", novelName)
+	logger.Infof("CanScrapeNovel : %s", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))
 	novelUrl, err := scraper.findNovelUrl(novelName)
 
 	if err != nil {
-		fmt.Println(err.Error())
 		return false
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/config"
 	"github.com/MrColorado/backend/server/internal/dataHandler/gen_models"
 	"github.com/MrColorado/backend/server/internal/models"
@@ -28,7 +29,7 @@ type PostgresClient struct {
 func NewPostgresClient(cfg config.PostgresConfigStruct) *PostgresClient {
 	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", cfg.PostgresDB, cfg.PostgresUser, cfg.PostgresPassword, cfg.PostgresHost))
 	if err != nil {
-		fmt.Println(err)
+		logger.Warn(err.Error())
 	}
 
 	boil.SetDB(db)
@@ -48,8 +49,7 @@ func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) 
 	).Bind(context.TODO(), client.db, &na)
 
 	if err != nil {
-		fmt.Println(err)
-		return models.NovelData{}, fmt.Errorf("failed to get novel with id %s", id)
+		return models.NovelData{}, logger.Errorf("failed to get novel with id %s", id)
 	}
 
 	return models.NovelData{
@@ -79,8 +79,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	).Bind(context.TODO(), client.db, &na)
 
 	if err != nil {
-		fmt.Println(err)
-		return models.NovelData{}, fmt.Errorf("failed to get novel with title %s", title)
+		return models.NovelData{}, logger.Errorf("failed to get novel with title %s", title)
 	}
 
 	return models.NovelData{
@@ -104,8 +103,7 @@ func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNove
 
 	novels, err := gen_models.Novels(qm.Where("title like ?", fmt.Sprintf("%%%s%%", novelName))).All(context.TODO(), client.db)
 	if err != nil {
-		fmt.Println(err)
-		return []models.PartialNovelData{}, fmt.Errorf("failed to get novels")
+		return []models.PartialNovelData{}, logger.Errorf("failed to get novels")
 	}
 
 	for _, novel := range novels {
@@ -115,8 +113,7 @@ func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNove
 		).All(context.TODO(), client.db)
 
 		if err != nil {
-			fmt.Println(err.Error())
-			return []models.PartialNovelData{}, fmt.Errorf("failed to get genres for novel : %s", novel.Title)
+			return []models.PartialNovelData{}, logger.Errorf("failed to get genres for novel : %s", novel.Title)
 		}
 
 		genres := []string{}
@@ -140,8 +137,7 @@ func (client *PostgresClient) ListBooks(novelId string) ([]models.BookData, erro
 	books, err := gen_models.Books(gen_models.BookWhere.FKNovelID.EQ(novelId)).All(context.TODO(), client.db)
 
 	if err != nil {
-		fmt.Println(err)
-		return []models.BookData{}, fmt.Errorf("failed to list novels")
+		return []models.BookData{}, logger.Errorf("failed to list novels")
 	}
 
 	res := []models.BookData{}

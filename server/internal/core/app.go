@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	msgType "github.com/MrColorado/backend/internal/message"
+	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/dataHandler"
 	"github.com/MrColorado/backend/server/internal/models"
 )
@@ -26,16 +27,14 @@ func NewApp(s3 *dataHandler.S3Client, db *dataHandler.PostgresClient, nats *data
 func (app *App) GetBook(ID string, start int, end int) ([]byte, string, error) {
 	data, err := app.db.GetNovelById(ID)
 	if err != nil {
-		fmt.Println(err.Error())
-		return []byte{}, "", fmt.Errorf("failed to find novel with id: %s", ID)
+		return []byte{}, "", logger.Errorf("failed to find novel with id: %s", ID)
 	}
 
 	filepath := fmt.Sprintf("%s/epub", data.CoreData.Title)
 	fileName := fmt.Sprintf("%s-%04d-%04d.epub", data.CoreData.Title, start, end)
 	content, err := app.s3.DownLoadFile(filepath, fileName)
 	if err != nil {
-		fmt.Println(err.Error())
-		return []byte{}, "", fmt.Errorf("failed to get content of book %s/%s", filepath, fileName)
+		return []byte{}, "", logger.Errorf("failed to get content of book %s/%s", filepath, fileName)
 	}
 
 	return content, data.CoreData.Title, nil
@@ -44,13 +43,11 @@ func (app *App) GetBook(ID string, start int, end int) ([]byte, string, error) {
 func (app *App) GetNovelByTitle(title string) (models.NovelData, error) {
 	data, err := app.db.GetNovelByTitle(title)
 	if err != nil {
-		fmt.Println(err.Error())
-		return models.NovelData{}, fmt.Errorf("failed to get novel %s", title)
+		return models.NovelData{}, logger.Errorf("failed to get novel %s", title)
 	}
 
 	corverUrl, err := app.s3.GetPreSignedLink(data.CoreData.CoverPath)
 	if err != nil {
-		fmt.Println(err)
 		data.CoreData.CoverPath = ""
 	} else {
 		data.CoreData.CoverPath = corverUrl
@@ -62,13 +59,11 @@ func (app *App) GetNovelByTitle(title string) (models.NovelData, error) {
 func (app *App) GetNovelById(ID string) (models.NovelData, error) {
 	data, err := app.db.GetNovelById(ID)
 	if err != nil {
-		fmt.Println(err.Error())
-		return models.NovelData{}, fmt.Errorf("failed to get novel with id %s", ID)
+		return models.NovelData{}, logger.Errorf("failed to get novel with id %s", ID)
 	}
 
 	corverUrl, err := app.s3.GetPreSignedLink(data.CoreData.CoverPath)
 	if err != nil {
-		fmt.Println(err)
 		data.CoreData.CoverPath = ""
 	} else {
 		data.CoreData.CoverPath = corverUrl
@@ -80,14 +75,12 @@ func (app *App) GetNovelById(ID string) (models.NovelData, error) {
 func (app *App) ListNovels(startBy string) ([]models.PartialNovelData, error) {
 	novels, err := app.db.ListNovels(startBy)
 	if err != nil {
-		fmt.Println(err)
-		return []models.PartialNovelData{}, fmt.Errorf("failed to get list of novel")
+		return []models.PartialNovelData{}, logger.Errorf("failed to get list of novel")
 	}
 
 	for _, novel := range novels {
 		corverUrl, err := app.s3.GetPreSignedLink(novel.CoverPath)
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
 		novel.CoverPath = corverUrl
@@ -99,62 +92,50 @@ func (app *App) ListNovels(startBy string) ([]models.PartialNovelData, error) {
 func (app *App) ListBook(ID string) ([]models.BookData, error) {
 	books, err := app.db.ListBooks(ID)
 	if err != nil {
-		fmt.Println(err.Error())
-		return []models.BookData{}, fmt.Errorf("failed to find novel with id: %s", ID)
+		return []models.BookData{}, logger.Errorf("failed to find novel with id: %s", ID)
 	}
 
 	return books, nil
 }
 
 func (app *App) RequestNovel(title string) error {
-	fmt.Println("A")
-	out, err := json.Marshal(msgType.Message{
-		Event: "can_scrape",
-		Payload: msgType.CanScrapeRqt{
-			Title: title,
-		},
+	j, _ := json.Marshal(msgType.CanScrapeRqt{
+		Title: title,
 	})
-	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to marshal request")
-	}
+	out, _ := json.Marshal(msgType.Message{
+		Event:   "can_scrape",
+		Payload: json.RawMessage(j),
+	})
 
-	fmt.Println("B")
 	resp, err := app.nats.Request("scrapable", out)
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to request on nats")
+		return logger.Error("failed to request on nats")
+	}
+	var msg msgType.Message
+	if json.Unmarshal(resp, &msg) != nil {
+		return logger.Errorf("failed to unmarshal response : %s : %s", string(resp), err.Error())
 	}
 
-	fmt.Println("C")
-	var in msgType.CanScrapeRsp
-	err = json.Unmarshal(resp, &in)
-	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to unmarshal response")
+	var scrapeRsp msgType.CanScrapeRsp
+	if json.Unmarshal(msg.Payload, &scrapeRsp) != nil {
+		return logger.Errorf("failed to unmarshal response : %s : %s", string(resp), err.Error())
+	}
+	if len(scrapeRsp.ScraperName) == 0 {
+		return logger.Errorf("can not scrape novel %s", title)
 	}
 
-	if len(in.ScraperName) == 0 {
-		return fmt.Errorf("can not scrape novel %s", title)
-	}
-
-	out, err = json.Marshal(msgType.Message{
-		Event: "scrape",
-		Payload: msgType.ScrapeNovelRqt{
-			NovelTitle: title,
-		},
+	j, _ = json.Marshal(msgType.ScrapeNovelRqt{
+		NovelTitle:  title,
+		ScraperName: scrapeRsp.ScraperName,
 	})
-	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to marshal request")
-	}
+	out, _ = json.Marshal(msgType.Message{
+		Event:   "scrape",
+		Payload: json.RawMessage(j),
+	})
 
-	fmt.Println("D")
-	err = app.nats.PublishMsg(fmt.Sprintf("scraper:%s", in.ScraperName), out)
+	err = app.nats.PublishMsg(fmt.Sprintf("scraper.%s", scrapeRsp.ScraperName), out)
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to publish msg")
+		return logger.Error("failed to publish msg")
 	}
-	fmt.Println("E")
 	return nil
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/MrColorado/backend/logger"
 	cfg "github.com/MrColorado/backend/server/internal/config"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -36,7 +36,7 @@ func NewS3Client(c cfg.AwsConfigStruct) *S3Client {
 		config.WithRegion("auto"),
 	)
 	if err != nil {
-		fmt.Println(err)
+		logger.Fatalf(err.Error())
 	}
 
 	s3Client := s3.NewFromConfig(cfg)
@@ -52,13 +52,12 @@ func (client *S3Client) DownLoadFile(filePath string, fileName string) ([]byte, 
 		Key:    aws.String(fmt.Sprintf("%s/%s", filePath, fileName)),
 	})
 	if err != nil {
-		log.Printf("Couldn't get object %v:%v. Here's why: %v\n", bucketName, filePath, err)
-		return []byte{}, err
+		return []byte{}, logger.Errorf("Couldn't get object %v:%v : %v\n", bucketName, filePath, err)
 	}
 
 	body, err := io.ReadAll(result.Body)
 	if err != nil {
-		log.Printf("Couldn't read object body from %v. Here's why: %v\n", filePath, err)
+		logger.Errorf("Couldn't read object body from %v : %v\n", filePath, err)
 	}
 	return body, err
 }
@@ -71,8 +70,7 @@ func (client *S3Client) GetPreSignedLink(filePath string) (string, error) {
 		},
 	)
 	if err != nil {
-		log.Printf("Couldn't presigned file %v. Here's why: %v\n", filePath, err)
-		return "", nil
+		return "", logger.Errorf("Couldn't presigned file %v : %v\n", filePath, err)
 	}
 	return presignedUrl.URL, nil
 }

@@ -3,9 +3,12 @@ package converter
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 
-	"github.com/MrColorado/backend/bookHandler/internal/core"
-	"github.com/MrColorado/backend/bookHandler/internal/models"
+	"github.com/MrColorado/backend/book-handler/internal/core"
+	"github.com/MrColorado/backend/book-handler/internal/models"
+	"github.com/MrColorado/backend/logger"
 	"github.com/bmaupin/go-epub"
 )
 
@@ -27,26 +30,34 @@ func NewEpubConverter(app *core.App) *EpubConverter {
 func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string) error {
 	data, err := cvt.app.GetMetaData(novelName)
 	if err != nil {
-		println(err.Error())
-		return fmt.Errorf("failed to import metaData for novel %s", novelName)
+		return logger.Errorf("failed to import metaData for novel %s : %s", novelName, err.Error())
 	}
 
 	filePath, err := cvt.app.GetCoverDiskPath(novelName)
 	if err != nil {
-		println(err.Error())
-		return fmt.Errorf("failed to import cover inside novel %s", novelName)
+		return logger.Errorf("failed to import cover inside novel %s : %s", novelName, err.Error())
 	}
 	// defer cvt.app.RemoveCoverDiskPath(filePath) TODO check if we can delete the image before the novel is written on disk
 
 	imgPath, err := e.AddImage(filePath, "")
 	if err != nil {
-		println(err.Error())
-		return fmt.Errorf("failed to import cover inside novel %s", novelName)
+		return logger.Errorf("failed to import cover inside novel %s : %s", novelName, err.Error())
 	}
-	coverCSSPath, err := e.AddCSS("./converter/epub.css", "")
+	coverCSSPath, err := e.AddCSS("/converter/css/epub.css", "")
 	if err != nil {
-		println(err.Error())
-		return fmt.Errorf("failed to import cover inside novel %s", novelName)
+		ex, _ := os.Executable()
+		exPath := filepath.Dir(ex)
+		logger.Warnf("PWD : %s", exPath)
+
+		filepath.Walk(".",
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				fmt.Println(path, info.Size())
+				return nil
+			})
+		return logger.Errorf("failed to import cover inside novel %s : %s", novelName, err.Error())
 	}
 
 	e.SetAuthor(data.Author)
@@ -65,7 +76,6 @@ func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, end
 		chapterData, err := cvt.app.GetNovelChapter(novelName, i)
 		chapterData.Chapter = i
 		if err != nil {
-			fmt.Println(err.Error())
 			continue
 		}
 
@@ -74,7 +84,7 @@ func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, end
 			bodySection += fmt.Sprintf("<p>%s</p>", paragraph)
 		}
 		if _, err := e.AddSection(bodySection, fmt.Sprintf("Chapter %d", i), "", ""); err != nil {
-			fmt.Printf("fail to add chapter %d of novel %s\n", i, novelName)
+			logger.Warnf("failed to add chapter %d of novel %s : %s", i, novelName, err.Error())
 			continue
 		}
 	}
@@ -82,14 +92,12 @@ func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, end
 	buf := new(bytes.Buffer)
 	_, err := e.WriteTo(buf)
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to write epub file %s in a buffer", fileName)
+		return logger.Errorf("failed to write epub file %s in a buffer", fileName)
 	}
 
 	err = cvt.app.ExportBook(novelName, fileName, buf.Bytes(), models.BookData{Start: startChapter, End: endChapter})
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to export epub file %s", fileName)
+		return logger.Errorf("failed to export epub file %s", fileName)
 	}
 	return nil
 }
@@ -100,7 +108,7 @@ func (cvt *EpubConverter) ConvertPartialNovel(novelName string, startChapter int
 		toModulo100 := 100 - startChapter%100
 		err := cvt.convertToNovel(novelName, startChapter, startChapter+toModulo100)
 		if err != nil {
-			fmt.Println(err.Error())
+			return logger.Errorf("failed to convert to novel %s, %d, %d", novelName, startChapter, startChapter+toModulo100)
 		}
 		startChapter += toModulo100
 	}
@@ -111,14 +119,14 @@ func (cvt *EpubConverter) ConvertPartialNovel(novelName string, startChapter int
 	for i := firstBook; i < firstBook+numberOfBook; i++ {
 		err := cvt.convertToNovel(novelName, i*100+1, (i+1)*100)
 		if err != nil {
-			fmt.Println(err.Error())
+			return logger.Errorf("failed to convert to novel %s, %d, %d", novelName, i*100+1, (i+1)*100)
 		}
 	}
 
 	if endChapter%100 != 0 {
 		err := cvt.convertToNovel(novelName, (firstBook+numberOfBook)*100+1, endChapter)
 		if err != nil {
-			fmt.Println(err.Error())
+			return logger.Errorf("failed to convert to novel %s, %d, %d", novelName, (firstBook+numberOfBook)*100+1, endChapter)
 		}
 	}
 	return nil
@@ -128,8 +136,7 @@ func (cvt *EpubConverter) ConvertPartialNovel(novelName string, startChapter int
 func (cvt *EpubConverter) ConvertNovel(novelName string) error {
 	nbChapter, err := cvt.app.GetNbChapter(novelName)
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to get number of chapter for novel %s", novelName)
+		return logger.Errorf("failed to get number of chapter for novel %s", novelName)
 	}
 
 	rest := 0
@@ -137,19 +144,19 @@ func (cvt *EpubConverter) ConvertNovel(novelName string) error {
 		rest += 1
 	}
 	nbBook := nbChapter / 100
-	fmt.Printf("for novel %s there are %d chapter and so %d books\n", novelName, nbChapter, nbBook+rest)
+	logger.Infof("for novel %s there are %d chapter and so %d books", novelName, nbChapter, nbBook+rest)
 
 	for i := 0; i < nbBook; i++ {
 		err := cvt.convertToNovel(novelName, (i*100)+1, (i+1)*100)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Errorf("failed to convert novel %s, %d, %d", novelName, (i*100)+1, (i+1)*100)
 		}
 	}
 
 	if rest != 0 {
 		err := cvt.convertToNovel(novelName, (nbBook*100)+1, nbChapter)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Errorf("failed to convert novel %s, %d, %d", novelName, (nbBook*100)+1, nbChapter)
 		}
 	}
 	return nil

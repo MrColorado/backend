@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MrColorado/backend/bookHandler/internal/converter"
-	"github.com/MrColorado/backend/bookHandler/internal/scraper"
+	"github.com/MrColorado/backend/book-handler/internal/converter"
+	"github.com/MrColorado/backend/book-handler/internal/scraper"
+	"github.com/MrColorado/backend/logger"
 )
 
 // job represents the job to be run
@@ -24,7 +25,7 @@ type worker struct {
 }
 
 func newWorker(scrp scraper.Scraper, convs []converter.Converter, workerPool chan chan job, closeHandle chan bool) *worker {
-	fmt.Println("newWorker")
+	logger.Info("newWorker")
 	return &worker{
 		scrp:        scrp,
 		convs:       convs,
@@ -37,7 +38,7 @@ func newWorker(scrp scraper.Scraper, convs []converter.Converter, workerPool cha
 // start method starts the run loop for the worker, listening for a quit channel in
 // case we need to stop it
 func (w *worker) start() {
-	fmt.Println("start")
+	logger.Info("start")
 	go func() {
 		for {
 			// Put the worker to the worker threadpool
@@ -74,7 +75,7 @@ type WorkerPool struct {
 
 // NewWorkerPool creates thread threadpool
 func newWorkerPool(scrpName string, convsName []string, noOfWorkers int, queueSize int) WorkerPool {
-	fmt.Println("NewWorkerPool")
+	logger.Info("NewWorkerPool")
 
 	wp := WorkerPool{
 		scrpName:    scrpName,
@@ -91,11 +92,11 @@ func newWorkerPool(scrpName string, convsName []string, noOfWorkers int, queueSi
 
 // createPool creates the workers and start listening on the jobQueue
 func (t *WorkerPool) createPool() error {
-	fmt.Println("createPool")
+	logger.Info("createPool")
 	for i := 0; i < t.noOfWorkers; i++ {
 		scrp, err := scraper.ScraperCreator(t.scrpName)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Info(err.Error())
 			return fmt.Errorf("failed to create worker pool for %s scraper", t.scrpName)
 		}
 
@@ -103,7 +104,7 @@ func (t *WorkerPool) createPool() error {
 		for _, convName := range t.convsName {
 			conv, err := converter.ConverterCreator(convName)
 			if err != nil {
-				fmt.Println(err.Error())
+				logger.Info(err.Error())
 				return fmt.Errorf("failed to create conveter %s", convName)
 			}
 			convs = append(convs, conv)
@@ -113,22 +114,22 @@ func (t *WorkerPool) createPool() error {
 		worker.start()
 	}
 
-	fmt.Println("before")
+	logger.Info("before")
 	go t.dispatch()
 	time.Sleep(time.Second * 2)
-	fmt.Println("after")
+	logger.Info("after")
 
 	return nil
 }
 
 // dispatch listens to the jobqueue and handles the jobs to the workers
 func (t *WorkerPool) dispatch() {
-	fmt.Println("dispatch")
+	logger.Info("dispatch")
 	for {
 		select {
 
 		case j := <-t.jobQueue:
-			fmt.Println("Got job")
+			logger.Info("Got job")
 
 			// Got job
 			func(j job) {
@@ -148,7 +149,7 @@ func (t *WorkerPool) dispatch() {
 func (t *WorkerPool) Execute(j job) bool {
 	// Add the task to the job queue
 	if len(t.jobQueue) == int(t.queueSize) {
-		fmt.Println("queue is full, not able add the task")
+		logger.Info("queue is full, not able add the task")
 		return false
 	}
 	t.jobQueue <- j

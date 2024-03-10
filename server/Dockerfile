@@ -9,6 +9,7 @@ WORKDIR /go/src/github.com/MrColorado/backend/server
 COPY ${DIRECTORY}/go.mod .
 COPY ${DIRECTORY}/go.sum .
 COPY internal/go.mod /go/src/github.com/MrColorado/backend/internal/go.mod
+COPY logger/go.mod /go/src/github.com/MrColorado/backend/logger/go.mod
 RUN go mod download
 
 # Build image
@@ -16,6 +17,7 @@ FROM builder_base as builder
 
 COPY ${DIRECTORY}/. .
 COPY internal/ /go/src/github.com/MrColorado/backend/internal/
+COPY logger/ /go/src/github.com/MrColorado/backend/logger/
 RUN make install
 
 # Deployment image

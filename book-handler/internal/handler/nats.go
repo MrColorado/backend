@@ -2,10 +2,10 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/MrColorado/backend/bookHandler/internal/config"
+	"github.com/MrColorado/backend/book-handler/internal/config"
+	"github.com/MrColorado/backend/logger"
 	"github.com/nats-io/nats.go"
 )
 
@@ -27,31 +27,31 @@ type NatsClient struct {
 }
 
 func NewNatsClient(cfg config.NatsConfigStruct, ctx context.Context) (*NatsClient, error) {
-	fmt.Printf("Connect nats at : %s\n", cfg.NatsHOST)
-	conn, err := nats.Connect(cfg.NatsHOST, nats.Name("bookHandler"))
+	logger.Infof("Connect nats at : %s", cfg.NatsHOST)
+	conn, err := nats.Connect(cfg.NatsHOST, nats.Name("book-handler"))
 	if err != nil {
-		fmt.Printf("Failed to connect nats at : %s\n", cfg.NatsHOST)
-		fmt.Println(err.Error())
-		return nil, fmt.Errorf("failed to create nats client")
+		logger.Info(err.Error())
+		return nil, logger.Error("failed to create nats client")
 	}
-	fmt.Printf("Succeed to connect nats at : %s\n", cfg.NatsHOST)
+	logger.Infof("Succeed to connect nats at : %s", cfg.NatsHOST)
 	return &NatsClient{
 		wg:         sync.WaitGroup{},
 		ctx:        ctx,
 		conn:       conn,
+		input:      make(chan *nats.Msg),
 		subDataMap: make(map[string]subDataHolder),
 	}, nil
 }
 
 func (nc *NatsClient) AddChanQueueSub(subject string, group string) error {
-	fmt.Printf("Listen on %s with group : %s\n", subject, group)
+	logger.Infof("Listen on %s with group : %s", subject, group)
 	input := make(chan *nats.Msg)
 	sub, err := nc.conn.ChanQueueSubscribe(subject, group, input)
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to subscribe to %s with group %s", subject, group)
+		logger.Info(err.Error())
+		return logger.Errorf("failed to subscribe to %s with group %s", subject, group)
 	}
-	fmt.Printf("Succeed to listen on %s with group : %s\n", subject, group)
+	logger.Infof("Succeed to listen on %s with group : %s", subject, group)
 	nc.subDataMap[subject] = subDataHolder{
 		input: input,
 		sub:   sub,
@@ -62,13 +62,13 @@ func (nc *NatsClient) AddChanQueueSub(subject string, group string) error {
 func (nc *NatsClient) RemoveChanQueueSub(subject string) error {
 	holder, ok := nc.subDataMap[subject]
 	if !ok {
-		return fmt.Errorf("service is not listening on %s", subject)
+		return logger.Errorf("service is not listening on %s", subject)
 	}
 
 	err := holder.sub.Unsubscribe()
 	if err != nil {
-		fmt.Println(err.Error())
-		return fmt.Errorf("failed to unsubcribe from %s", subject)
+		logger.Info(err.Error())
+		return logger.Errorf("failed to unsubcribe from %s", subject)
 	}
 
 	close(holder.input)
@@ -77,28 +77,27 @@ func (nc *NatsClient) RemoveChanQueueSub(subject string) error {
 }
 
 func (nc *NatsClient) Run(msgHdl msgHandler, rqthandler requestHandler) {
-	fmt.Printf("Run")
+	logger.Info("Run")
 	for _, holder := range nc.subDataMap {
 		nc.wg.Add(1)
 		go func(nc *NatsClient, holder subDataHolder) {
-			fmt.Printf("Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+			logger.Infof("Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
 			defer nc.wg.Done()
 			for {
 				select {
 				case msg, ok := <-holder.input:
 					if !ok {
-						fmt.Printf("KO Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+						logger.Infof("Ko Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
 						return
 					}
-					fmt.Printf("Got msg : %s ", msg.Subject)
+					logger.Infof("Got msg %s on %s", string(msg.Data), msg.Subject)
 					nc.input <- msg
 				case <-nc.ctx.Done():
-					fmt.Printf("DONE Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+					logger.Infof("Done listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
 					return
 				}
 			}
 		}(nc, holder)
-		fmt.Printf("Run end")
 	}
 
 out:
@@ -106,15 +105,16 @@ out:
 		select {
 		case msg := <-nc.input:
 			if msg == nil {
-				fmt.Println("msg received is nil")
+				logger.Info("msg received is nil")
 				continue
 			}
+			logger.Infof("received on %s msg : ", msg.Subject, string(msg.Data))
 			if msg.Reply == "" {
 				msgHdl(msg.Data, msg.Subject)
 			} else {
 				rsp, err := rqthandler(msg.Data, msg.Subject)
 				if err != nil {
-					fmt.Println(err.Error())
+					logger.Info(err.Error())
 				}
 				nc.conn.Publish(msg.Reply, rsp)
 			}
@@ -125,3 +125,5 @@ out:
 
 	nc.wg.Wait()
 }
+
+// TODO : AddChanQueueSub wiil not read if called after run

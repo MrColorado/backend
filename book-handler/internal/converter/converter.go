@@ -1,11 +1,10 @@
 package converter
 
 import (
-	"fmt"
-
-	"github.com/MrColorado/backend/bookHandler/internal/config"
-	"github.com/MrColorado/backend/bookHandler/internal/core"
-	"github.com/MrColorado/backend/bookHandler/internal/dataStore"
+	"github.com/MrColorado/backend/book-handler/internal/config"
+	"github.com/MrColorado/backend/book-handler/internal/core"
+	"github.com/MrColorado/backend/book-handler/internal/dataStore"
+	"github.com/MrColorado/backend/logger"
 )
 
 // Converter interface that convert novelData to e-tablet format
@@ -25,6 +24,6 @@ func ConverterCreator(name string) (Converter, error) {
 	case EpubConverterName:
 		return NewEpubConverter(app), nil
 	default:
-		return nil, fmt.Errorf("failed to create converted named : %s", name)
+		return nil, logger.Errorf("failed to create converted named : %s", name)
 	}
 }

@@ -1,12 +1,16 @@
 package msgType
 
+import (
+	"encoding/json"
+)
+
 type MetaData struct {
 }
 
 type Message struct {
-	Payload  any      `json:"payload"`
-	Metadata MetaData `json:"metadata"`
-	Event    string   `json:"event"`
+	Payload  json.RawMessage `json:"payload"`
+	Metadata MetaData        `json:"metadata"`
+	Event    string          `json:"event"`
 }
 
 type Error struct {

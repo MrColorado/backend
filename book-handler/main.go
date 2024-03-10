@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/MrColorado/backend/bookHandler/internal/config"
-	"github.com/MrColorado/backend/bookHandler/internal/converter"
-	"github.com/MrColorado/backend/bookHandler/internal/handler"
-	"github.com/MrColorado/backend/bookHandler/internal/scraper"
+	"github.com/MrColorado/backend/book-handler/internal/config"
+	"github.com/MrColorado/backend/book-handler/internal/converter"
+	"github.com/MrColorado/backend/book-handler/internal/handler"
+	"github.com/MrColorado/backend/book-handler/internal/scraper"
+	"github.com/MrColorado/backend/logger"
 )
 
 var (
@@ -18,15 +18,16 @@ var (
 )
 
 func main() {
+	config.InitLogger()
 	config := config.GetConfig()
 	nats, err := handler.NewNatsClient(config.NatsConfig, context.TODO())
 	if err != nil {
-		fmt.Printf(err.Error())
+		logger.Info(err.Error())
 		return
 	}
 	manager, err := handler.NewScraperManager(nats, scrpCfg, convsName)
 	if err != nil {
-		fmt.Printf(err.Error())
+		logger.Info(err.Error())
 		return
 	}
 	manager.Run()

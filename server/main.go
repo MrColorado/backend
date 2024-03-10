@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/config"
 	"github.com/MrColorado/backend/server/internal/core"
 	"github.com/MrColorado/backend/server/internal/dataHandler"
@@ -10,11 +9,11 @@ import (
 )
 
 func main() {
-	fmt.Println("TEEEEST")
+	config.InitLogger()
 	cfg := config.GetConfig()
 	nats, err := dataHandler.NewNatsClient(cfg.NatsConfig)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Info(err.Error())
 		return
 	}
 	app := core.NewApp(dataHandler.NewS3Client(cfg.AwsConfig), dataHandler.NewPostgresClient(cfg.PostgresConfig), nats)

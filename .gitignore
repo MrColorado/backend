@@ -24,6 +24,6 @@ gen_models
 volumes
 
 go.work.sum
-bookHandler/bookHandler
+book-handler/book-handler
 server/server
 schemas/old_novel_schema.sql

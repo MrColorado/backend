@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/core"
 	"github.com/MrColorado/backend/server/internal/grpc/novelpb"
 	"github.com/MrColorado/backend/server/internal/models"
@@ -28,7 +29,7 @@ func NewSever(app *core.App) *Server {
 }
 
 func (server *Server) GetBook(ctx context.Context, req *novelpb.GetBookRequest) (*novelpb.GetBookResponse, error) {
-	fmt.Println("Novel Service - Called GetBook : ", req.GetNovelId())
+	logger.Infof("Novel Service - Called GetBook : ", req.GetNovelId())
 
 	content, title, err := server.app.GetBook(req.NovelId, int(req.Chapter.Start), int(req.Chapter.End))
 	if err != nil {
@@ -47,21 +48,19 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 
 	switch req.OneofIdOrName.(type) {
 	case *novelpb.GetNovelRequest_Id:
-		fmt.Println("Novel Service - Called GetNovel : ", req.GetId())
+		logger.Infof("Novel Service - Called GetNovel : ", req.GetId())
 		data, err = server.app.GetNovelById(req.GetId())
 	case *novelpb.GetNovelRequest_Title:
-		fmt.Println("Novel Service - Called GetNovel : ", req.GetTitle())
+		logger.Infof("Novel Service - Called GetNovel : ", req.GetTitle())
 		data, err = server.app.GetNovelByTitle(req.GetTitle())
 	}
 
 	if err != nil {
-		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
 	chpData, err := server.app.ListBook(data.CoreData.Id)
 	if err != nil {
-		fmt.Println(err.Error())
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
@@ -91,11 +90,10 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 }
 
 func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelRequest) (*novelpb.ListNovelResponse, error) {
-	fmt.Println("Novel Service - Called ListNovel")
+	logger.Info("Novel Service - Called ListNovel")
 
 	datas, err := server.app.ListNovels(req.GetStartBy())
 	if err != nil {
-		fmt.Println(err.Error())
 		return &novelpb.ListNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
@@ -115,12 +113,9 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 }
 
 func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
-	fmt.Printf("Novel Service - Called RequestNovel : %s\n", req.GetTitle())
-	fmt.Println("Before")
+	logger.Infof("Novel Service - Called RequestNovel : %s", req.GetTitle())
 	err := server.app.RequestNovel(req.Title)
-	fmt.Println("After")
 	if err != nil {
-		fmt.Println(err.Error())
 		return &novelpb.RequestNovelResponse{Success: false}, nil
 	}
 	return &novelpb.RequestNovelResponse{Success: true}, nil
@@ -131,16 +126,16 @@ func (server *Server) Run() {
 
 	lis, err := net.Listen("tcp", "0.0.0.0:55051")
 	if err != nil {
-		fmt.Println("Novel Service - ERROR:", err.Error())
+		logger.Fatalf("Novel Service - ERROR:", err.Error())
 	}
 
 	s := grpc.NewServer()
 	novelpb.RegisterNovelServerServer(s, server)
 
-	fmt.Printf("Server started at %v\n", lis.Addr().String())
+	logger.Infof("Server started at %v", lis.Addr().String())
 
 	err = s.Serve(lis)
 	if err != nil {
-		fmt.Println("Novel Service - ERROR:", err.Error())
+		logger.Fatalf("Novel Service - ERROR:", err.Error())
 	}
 }

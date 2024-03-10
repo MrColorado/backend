@@ -3,9 +3,9 @@ package scraper
 import (
 	"fmt"
 
-	"github.com/MrColorado/backend/bookHandler/internal/config"
-	"github.com/MrColorado/backend/bookHandler/internal/core"
-	"github.com/MrColorado/backend/bookHandler/internal/dataStore"
+	"github.com/MrColorado/backend/book-handler/internal/config"
+	"github.com/MrColorado/backend/book-handler/internal/core"
+	"github.com/MrColorado/backend/book-handler/internal/dataStore"
 )
 
 // Scraper of each website should implement this interface

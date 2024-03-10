@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/MrColorado/backend/logger"
+)
 
 type AwsConfigStruct struct {
 	S3Location string
@@ -23,6 +27,18 @@ type Config struct {
 	AwsConfig      AwsConfigStruct
 	PostgresConfig PostgresConfigStruct
 	NatsConfig     NatsConfigStruct
+}
+
+func InitLogger() {
+	logger.Init(
+		logger.Configuration{
+			AppName: "book-handler",
+			Logger: &logger.LoggerConfiguration{
+				DevLogs:    true,
+				StackTrace: true,
+			},
+		},
+	)
 }
 
 func GetConfig() Config {

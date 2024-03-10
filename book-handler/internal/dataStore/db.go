@@ -10,9 +10,10 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/MrColorado/backend/bookHandler/internal/config"
-	"github.com/MrColorado/backend/bookHandler/internal/dataStore/gen_models"
-	"github.com/MrColorado/backend/bookHandler/internal/models"
+	"github.com/MrColorado/backend/book-handler/internal/config"
+	"github.com/MrColorado/backend/book-handler/internal/dataStore/gen_models"
+	"github.com/MrColorado/backend/book-handler/internal/models"
+	"github.com/MrColorado/backend/logger"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -27,9 +28,10 @@ type PostgresClient struct {
 }
 
 func NewPostgresClient(config config.PostgresConfigStruct) *PostgresClient {
-	db, err := sql.Open("postgres", fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost))
+	url := fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost)
+	db, err := sql.Open("postgres", url)
 	if err != nil {
-		fmt.Println(err)
+		logger.Warnf("failed to create connection to %s : %s", url, err.Error())
 	}
 
 	boil.SetDB(db)
@@ -46,14 +48,12 @@ func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) err
 	}
 	err := author.Upsert(context.TODO(), client.db, false, nil, boil.Whitelist(), boil.Infer())
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
+		return logger.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
 	if author.ID == 0 {
 		atr, err := gen_models.Authors(gen_models.AuthorWhere.Name.EQ(data.Author)).One(context.TODO(), client.db)
 		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("failed to get author %s", data.Author)
+			return logger.Errorf("failed to get author %s", data.Author)
 		}
 		author.ID = atr.ID
 	}
@@ -72,8 +72,7 @@ func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) err
 	}
 	err = novel.Upsert(context.TODO(), client.db, true, []string{"title"}, boil.Greylist("CurrentChapter", "NextURL"), boil.Infer())
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert metadata for novel %s", data.Title)
+		return logger.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
 	return nil
 }
@@ -90,8 +89,7 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 
 	err := book.Upsert(context.TODO(), client.db, true, []string{"fk_novel_id", "start"}, boil.Greylist("end", "last_update"), boil.Infer())
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelId, data.Start, data.End)
+		return logger.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelId, data.Start, data.End)
 	}
 
 	novel := gen_models.Novel{
@@ -100,8 +98,7 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 	}
 	_, err = novel.Update(context.TODO(), client.db, boil.Whitelist("last_update"))
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("failed to update last_update for for novel %s", data.NovelId)
+		return logger.Errorf("failed to update last_update for for novel %s", data.NovelId)
 	}
 
 	return nil
@@ -118,8 +115,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	).Bind(context.TODO(), client.db, &na)
 
 	if err != nil {
-		fmt.Println(err)
-		return models.NovelData{}, fmt.Errorf("failed to get novel with title %s", title)
+		return models.NovelData{}, logger.Errorf("failed to get novel with title %s : %s", title, err.Error())
 	}
 
 	return models.NovelData{
