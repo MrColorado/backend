@@ -23,6 +23,7 @@ type S3Client struct {
 }
 
 func NewS3Client(c cfg.AwsConfigStruct) *S3Client {
+	logger.Info(c)
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL:               c.S3Location,
@@ -63,6 +64,7 @@ func (client *S3Client) DownLoadFile(filePath string, fileName string) ([]byte, 
 }
 
 func (client *S3Client) GetPreSignedLink(filePath string) (string, error) {
+	logger.Infof("BucketName : %s, FilePath : %s", bucketName, filePath)
 	presignedUrl, err := client.preSignedClient.PresignGetObject(context.TODO(),
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucketName),

@@ -9,6 +9,7 @@ import (
 
 	"github.com/MrColorado/backend/book-handler/internal/core"
 	"github.com/MrColorado/backend/book-handler/internal/models"
+	"github.com/MrColorado/backend/internal/common"
 	"github.com/MrColorado/backend/logger"
 	"github.com/gocolly/colly/v2"
 )
@@ -61,7 +62,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
-		novelMetaData.Title = strings.TrimSpace(strings.ToLower(e.Text))
+		novelMetaData.Title = common.HarmonizeTitle(e.Text)
 	})
 
 	scraper.collector.OnHTML(".btn-read-now", func(e *colly.HTMLElement) {
@@ -189,7 +190,7 @@ func (scraper ReadNovelScraper) GetName() string {
 
 // ScrapeNovel get each chapter of a specific novel
 func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
-	novelName = strings.TrimSpace(strings.ToLower(novelName))
+	novelName = common.HarmonizeTitle(novelName)
 	data, _ := scraper.app.GetMetaData(novelName)
 	if data.Title == "" {
 		scraper.scrapeNovelStart(novelName, 1)
@@ -200,6 +201,7 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 
 // CanScrapeNovel check if novel is on the webSite
 func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
+	novelName = common.HarmonizeTitle(novelName)
 	logger.Infof("CanScrapeNovel : %s", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))
 	novelUrl, err := scraper.findNovelUrl(novelName)

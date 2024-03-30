@@ -3,9 +3,8 @@ package converter
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 
+	"github.com/MrColorado/backend/book-handler/internal/config"
 	"github.com/MrColorado/backend/book-handler/internal/core"
 	"github.com/MrColorado/backend/book-handler/internal/models"
 	"github.com/MrColorado/backend/logger"
@@ -43,20 +42,9 @@ func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string) error 
 	if err != nil {
 		return logger.Errorf("failed to import cover inside novel %s : %s", novelName, err.Error())
 	}
-	coverCSSPath, err := e.AddCSS("/converter/css/epub.css", "")
-	if err != nil {
-		ex, _ := os.Executable()
-		exPath := filepath.Dir(ex)
-		logger.Warnf("PWD : %s", exPath)
 
-		filepath.Walk(".",
-			func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				fmt.Println(path, info.Size())
-				return nil
-			})
+	coverCSSPath, err := e.AddCSS(config.GetConfig().MiscConfig.FilesFolder+"converter/css/epub.css", "")
+	if err != nil {
 		return logger.Errorf("failed to import cover inside novel %s : %s", novelName, err.Error())
 	}
 

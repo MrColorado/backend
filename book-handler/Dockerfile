@@ -23,8 +23,9 @@ RUN make install
 # Deployment image
 FROM golang:bookworm
 
-ARG DIRECTORY
-RUN mkdir -p /converter/css
+ARG FILES_FOLDER
+
+RUN mkdir -p ${DIRECTORY}/converter/css
 COPY --from=builder /go/src/github.com/MrColorado/backend/book-handler/internal/converter/css/epub.css /converter/css/epub.css
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/bin/book-handler /service

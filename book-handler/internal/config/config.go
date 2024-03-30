@@ -6,6 +6,10 @@ import (
 	"github.com/MrColorado/backend/logger"
 )
 
+type MiscConfigStruct struct {
+	FilesFolder string
+}
+
 type AwsConfigStruct struct {
 	S3Location string
 	S3UserName string
@@ -27,6 +31,7 @@ type Config struct {
 	AwsConfig      AwsConfigStruct
 	PostgresConfig PostgresConfigStruct
 	NatsConfig     NatsConfigStruct
+	MiscConfig     MiscConfigStruct
 }
 
 func InitLogger() {
@@ -57,6 +62,10 @@ func GetConfig() Config {
 		NatsConfig: NatsConfigStruct{
 			NatsHOST: os.Getenv("NATS_HOST"),
 		},
+		MiscConfig: MiscConfigStruct{
+			FilesFolder: os.Getenv("FILES_FOLDER"),
+		},
 	}
+
 	return config
 }

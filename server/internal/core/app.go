@@ -78,12 +78,13 @@ func (app *App) ListNovels(startBy string) ([]models.PartialNovelData, error) {
 		return []models.PartialNovelData{}, logger.Errorf("failed to get list of novel")
 	}
 
-	for _, novel := range novels {
-		corverUrl, err := app.s3.GetPreSignedLink(novel.CoverPath)
+	for i, _ := range novels {
+		coverUrl, err := app.s3.GetPreSignedLink(novels[i].CoverPath)
 		if err != nil {
 			continue
 		}
-		novel.CoverPath = corverUrl
+		logger.Infof("CoverPath: %s, Cover Url: %s", novels[i].CoverPath, coverUrl)
+		novels[i].CoverPath = coverUrl
 	}
 
 	return novels, nil

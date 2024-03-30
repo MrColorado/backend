@@ -20,6 +20,7 @@ var (
 func main() {
 	config.InitLogger()
 	config := config.GetConfig()
+	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
 	nats, err := handler.NewNatsClient(config.NatsConfig, context.TODO())
 	if err != nil {
 		logger.Info(err.Error())

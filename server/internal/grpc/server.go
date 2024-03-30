@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/MrColorado/backend/internal/common"
 	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/core"
 	"github.com/MrColorado/backend/server/internal/grpc/novelpb"
@@ -29,7 +30,7 @@ func NewSever(app *core.App) *Server {
 }
 
 func (server *Server) GetBook(ctx context.Context, req *novelpb.GetBookRequest) (*novelpb.GetBookResponse, error) {
-	logger.Infof("Novel Service - Called GetBook : ", req.GetNovelId())
+	logger.Infof("Novel Service - Called GetBook : %s", req.GetNovelId())
 
 	content, title, err := server.app.GetBook(req.NovelId, int(req.Chapter.Start), int(req.Chapter.End))
 	if err != nil {
@@ -48,11 +49,11 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 
 	switch req.OneofIdOrName.(type) {
 	case *novelpb.GetNovelRequest_Id:
-		logger.Infof("Novel Service - Called GetNovel : ", req.GetId())
+		logger.Infof("Novel Service - Called GetNovel : %s", req.GetId())
 		data, err = server.app.GetNovelById(req.GetId())
 	case *novelpb.GetNovelRequest_Title:
-		logger.Infof("Novel Service - Called GetNovel : ", req.GetTitle())
-		data, err = server.app.GetNovelByTitle(req.GetTitle())
+		logger.Infof("Novel Service - Called GetNovel : %s", req.GetTitle())
+		data, err = server.app.GetNovelByTitle(common.HarmonizeTitle(req.GetTitle()))
 	}
 
 	if err != nil {
@@ -114,7 +115,7 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 
 func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNovelRequest) (*novelpb.RequestNovelResponse, error) {
 	logger.Infof("Novel Service - Called RequestNovel : %s", req.GetTitle())
-	err := server.app.RequestNovel(req.Title)
+	err := server.app.RequestNovel(common.HarmonizeTitle(req.Title))
 	if err != nil {
 		return &novelpb.RequestNovelResponse{Success: false}, nil
 	}
