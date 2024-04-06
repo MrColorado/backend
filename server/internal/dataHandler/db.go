@@ -22,6 +22,12 @@ type novelAuthor struct {
 	AuthorName       string `boil:"name"`
 }
 
+type novelGenres struct {
+	gen_models.Novel `boil:",bind"`
+	GenreName        string `boil:"genre_name"`
+	AuthorName       string `boil:"author_name"`
+}
+
 type PostgresClient struct {
 	db *sql.DB
 }
@@ -98,36 +104,39 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	}, nil
 }
 
-func (client *PostgresClient) ListNovels(novelName string) ([]models.PartialNovelData, error) {
+func (client *PostgresClient) ListNovels(title string) ([]models.PartialNovelData, error) {
 	res := []models.PartialNovelData{}
 
-	novels, err := gen_models.Novels(qm.Where("title like ?", fmt.Sprintf("%%%s%%", novelName))).All(context.TODO(), client.db)
+	var ng []novelGenres
+	err := gen_models.NewQuery(
+		qm.Select("ngm.fk_genre_name as genre_name", "author.name as author_name", "novel.id", "novel.title", "novel.cover_path", "novel.summary", "novel.last_update"),
+		qm.From("novel"),
+		qm.InnerJoin("novel_genre_map ngm on ngm.fk_novel_id = novel.id"),
+		qm.InnerJoin("author on author.id = novel.fk_author_id"),
+		qm.Where("title like ?", fmt.Sprintf("%%%s%%", title)),
+	).Bind(context.TODO(), client.db, &ng)
+
 	if err != nil {
 		return []models.PartialNovelData{}, logger.Errorf("failed to get novels")
 	}
 
-	for _, novel := range novels {
-		genreDb, err := gen_models.Genres(
-			qm.InnerJoin("novel_genre_map ngm on ngm.fk_genre_id = genre.id"),
-			qm.Where("ngm.fk_novel_id=?", novel.ID),
-		).All(context.TODO(), client.db)
-
-		if err != nil {
-			return []models.PartialNovelData{}, logger.Errorf("failed to get genres for novel : %s", novel.Title)
+	for i := 0; i < len(ng); {
+		pnd := models.PartialNovelData{
+			Id:         ng[i].ID,
+			Title:      ng[i].Title,
+			CoverPath:  ng[i].CoverPath,
+			Summary:    ng[i].Summary,
+			LastUpdate: ng[i].LastUpdate,
+			Author:     ng[i].AuthorName,
 		}
 
 		genres := []string{}
-		for _, genre := range genreDb {
-			genres = append(genres, genre.Name)
+		for ; i < len(ng) && ng[i].ID == pnd.Id; i++ {
+			genres = append(genres, ng[i].GenreName)
 		}
-		res = append(res, models.PartialNovelData{
-			Id:         novel.ID,
-			Title:      novel.Title,
-			CoverPath:  novel.CoverPath,
-			Summary:    novel.Summary,
-			Genres:     genres,
-			LastUpdate: novel.LastUpdate,
-		})
+		pnd.Genres = genres
+
+		res = append(res, pnd)
 	}
 
 	return res, nil

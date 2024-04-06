@@ -67,7 +67,7 @@ func (sm *ScraperManager) msgHandler(data []byte, subject string) {
 		}
 
 		if !ok {
-			sm.nats.RemoveChanQueueSub(subject)
+			sm.nats.RemoveChanQueueSub(subject) // TODO how de we subscribe again after ?
 		}
 	}
 }
@@ -133,7 +133,7 @@ func (sm *ScraperManager) scrape(data json.RawMessage) (bool, error) {
 
 	wp, ok := sm.scraperPools[rqt.ScraperName]
 	if !ok {
-		return ok, logger.Errorf("scraper %s does not exist", rqt.ScraperName)
+		return true, logger.Errorf("scraper %s does not exist", rqt.ScraperName)
 	}
 
 	return wp.Execute(job{NovelName: rqt.NovelTitle}), nil

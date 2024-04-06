@@ -47,6 +47,7 @@ type NovelMetaData struct {
 	NextURL        string
 	NbChapter      int
 	CurrentChapter int
+	Status         int
 	CoverData      []byte
 	Genres         []string
 	Tags           []string

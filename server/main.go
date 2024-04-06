@@ -20,3 +20,11 @@ func main() {
 	server := grpc.NewSever(app)
 	server.Run()
 }
+
+// func main() {
+// 	config.InitLogger()
+// 	config := config.GetConfig()
+
+// 	db := dataHandler.NewPostgresClient(config.PostgresConfig)
+// 	db.ListNovels()
+// }

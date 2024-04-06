@@ -56,6 +56,27 @@ func (nc *NatsClient) AddChanQueueSub(subject string, group string) error {
 		input: input,
 		sub:   sub,
 	}
+
+	nc.wg.Add(1)
+	go func(nc *NatsClient, holder subDataHolder) {
+		logger.Infof("Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+		defer nc.wg.Done()
+		for {
+			select {
+			case msg, ok := <-holder.input:
+				if !ok {
+					logger.Infof("Ko Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+					return
+				}
+				logger.Infof("Got msg %s on %s", string(msg.Data), msg.Subject)
+				nc.input <- msg
+			case <-nc.ctx.Done():
+				logger.Infof("Done listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
+				return
+			}
+		}
+	}(nc, nc.subDataMap[subject])
+
 	return nil
 }
 
@@ -78,27 +99,6 @@ func (nc *NatsClient) RemoveChanQueueSub(subject string) error {
 
 func (nc *NatsClient) Run(msgHdl msgHandler, rqthandler requestHandler) {
 	logger.Info("Run")
-	for _, holder := range nc.subDataMap {
-		nc.wg.Add(1)
-		go func(nc *NatsClient, holder subDataHolder) {
-			logger.Infof("Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
-			defer nc.wg.Done()
-			for {
-				select {
-				case msg, ok := <-holder.input:
-					if !ok {
-						logger.Infof("Ko Listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
-						return
-					}
-					logger.Infof("Got msg %s on %s", string(msg.Data), msg.Subject)
-					nc.input <- msg
-				case <-nc.ctx.Done():
-					logger.Infof("Done listen on : %s on queue : %s", holder.sub.Subject, holder.sub.Queue)
-					return
-				}
-			}
-		}(nc, holder)
-	}
 
 out:
 	for {

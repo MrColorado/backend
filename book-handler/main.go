@@ -33,3 +33,25 @@ func main() {
 	}
 	manager.Run()
 }
+
+// func main() {
+// 	config.InitLogger()
+// 	config := config.GetConfig()
+// 	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
+
+// 	db := dataStore.NewPostgresClient(config.PostgresConfig)
+// 	db.GetNovelByTitle("the frozen player returns")
+// }
+
+// func main() {
+// 	config.InitLogger()
+// 	config := config.GetConfig()
+// 	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
+
+// 	scrp, err := scraper.ScraperCreator(scraper.ReadNovelScraperName)
+// 	if err != nil {
+// 		logger.Fatalf("Failed to init scraper %s", scraper.ReadNovelScraperName)
+// 	}
+
+// 	scrp.ScrapeNovel("THE FROZEN PLAYER RETURNS")
+// }

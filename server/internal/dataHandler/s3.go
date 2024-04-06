@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	bucketName = "novels"
+	bucketName = "novel"
 )
 
 type S3Client struct {
@@ -22,28 +22,30 @@ type S3Client struct {
 	preSignedClient *s3.PresignClient
 }
 
-func NewS3Client(c cfg.AwsConfigStruct) *S3Client {
-	logger.Info(c)
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+func getS3Client(host string, accessKey string, secretKey string) *s3.Client {
+	customInternResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
-			URL:               c.S3Location,
+			URL:               host,
 			HostnameImmutable: true,
 		}, nil
 	})
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithEndpointResolverWithOptions(customResolver),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.S3UserName, c.S3Password, "")),
+	conf, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithEndpointResolverWithOptions(customInternResolver),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
 		config.WithRegion("auto"),
 	)
 	if err != nil {
 		logger.Fatalf(err.Error())
 	}
 
-	s3Client := s3.NewFromConfig(cfg)
+	return s3.NewFromConfig(conf)
+}
+
+func NewS3Client(conf cfg.AwsConfigStruct) *S3Client {
 	return &S3Client{
-		s3Client:        s3Client,
-		preSignedClient: s3.NewPresignClient(s3Client),
+		s3Client:        getS3Client(conf.S3InternHost, conf.S3UserName, conf.S3Password),
+		preSignedClient: s3.NewPresignClient(getS3Client(conf.S3ExternHost, conf.S3UserName, conf.S3Password)),
 	}
 }
 
@@ -64,7 +66,6 @@ func (client *S3Client) DownLoadFile(filePath string, fileName string) ([]byte, 
 }
 
 func (client *S3Client) GetPreSignedLink(filePath string) (string, error) {
-	logger.Infof("BucketName : %s, FilePath : %s", bucketName, filePath)
 	presignedUrl, err := client.preSignedClient.PresignGetObject(context.TODO(),
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucketName),

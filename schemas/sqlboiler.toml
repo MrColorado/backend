@@ -5,8 +5,8 @@ no-tests = true
 add-enum-types = true
 
 [psql]
-    dbname = "novel_database"
-    host   = "localhost"
+    dbname = "novel"
+    host   = "host.docker.internal"
     port   = 5432
     user   = "root_user"
     pass   = "ksdjfhklsjdfh"

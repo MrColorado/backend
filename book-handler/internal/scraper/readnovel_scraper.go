@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/MrColorado/backend/book-handler/internal/core"
@@ -47,18 +46,36 @@ func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
 	return "", nil
 }
 
+func (scraper ReadNovelScraper) getNbOfChapter(novelId string) int {
+	counter := 0
+
+	scraper.collector.OnHTML(".panel-body", func(e *colly.HTMLElement) {
+		e.ForEach("li", func(_ int, paragraph *colly.HTMLElement) {
+			counter += 1
+		})
+	})
+
+	defer func() {
+		scraper.collector.OnHTMLDetach(".panel-body")
+	}()
+
+	scraper.collector.Visit("https://readnovelfull.com/ajax/chapter-archive?novelId=" + novelId)
+
+	return counter
+}
+
 func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
-	logger.Infof("Scrape metaData : %s", url)
+	novelId := ""
 	novelMetaData.CurrentChapter = 1
 
-	scraper.collector.OnHTML(".l-chapter", func(e *colly.HTMLElement) {
-		splittedString := strings.Split(e.ChildAttr("a", "title"), " ")
-		nbChapter, err := strconv.Atoi(splittedString[1])
-		if err != nil {
-			novelMetaData.NbChapter = -1
-		} else {
-			novelMetaData.NbChapter = nbChapter
-		}
+	scraper.collector.OnHTML("#tab-description", func(e *colly.HTMLElement) {
+		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
+			novelMetaData.Summary += paragraph.Text
+		})
+	})
+
+	scraper.collector.OnHTML("#rating", func(e *colly.HTMLElement) {
+		novelId = e.Attr("data-novel-id")
 	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
@@ -69,17 +86,22 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 		novelMetaData.FirstURL = readNovelURL + e.Attr("href")
 	})
 
-	scraper.collector.OnHTML("#tab-description", func(e *colly.HTMLElement) {
-		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
-			novelMetaData.Summary += paragraph.Text
-		})
-	})
-
 	scraper.collector.OnHTML(".info-meta", func(e *colly.HTMLElement) {
 		e.ForEach("li", func(_ int, li *colly.HTMLElement) {
 			if title := li.ChildText("h3"); title == "Author:" {
 				li.ForEach("a", func(_ int, a *colly.HTMLElement) {
-					novelMetaData.Author = a.Text
+					novelMetaData.Author = a.Text // TODO get all name or only the first ?
+				})
+			} else if genre := li.ChildText("h3"); genre == "Genre:" {
+				li.ForEach("a", func(_ int, a *colly.HTMLElement) {
+					novelMetaData.Genres = append(novelMetaData.Genres, a.Text)
+				})
+			} else if status := li.ChildText("h3"); status == "Status:" {
+				li.ForEach("a", func(_ int, a *colly.HTMLElement) {
+					novelMetaData.Status = 1
+					if a.Text == "Ongoing" {
+						novelMetaData.Status = 0
+					}
 				})
 			}
 		})
@@ -92,13 +114,14 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	defer func() {
 		scraper.collector.OnHTMLDetach("#tab-description")
 		scraper.collector.OnHTMLDetach(".btn-read-now")
-		scraper.collector.OnHTMLDetach(".l-chapter")
 		scraper.collector.OnHTMLDetach(".next_chap")
 		scraper.collector.OnHTMLDetach(".title")
 		scraper.collector.OnHTMLDetach(".book")
 	}()
 
 	scraper.collector.Visit(url)
+
+	novelMetaData.NbChapter = scraper.getNbOfChapter(novelId)
 }
 
 func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
@@ -141,19 +164,13 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		novelUrl, _ := scraper.findNovelUrl(novelName)
 		scraper.scrapMetaData(novelUrl, &data)
 
-		{
-			resp, err := http.Get(data.CoverPath)
-			if err == nil {
-				data.CoverData, _ = io.ReadAll(resp.Body)
-				defer resp.Body.Close()
-			}
+		resp, err := http.Get(data.CoverPath)
+		if err == nil {
+			data.CoverData, _ = io.ReadAll(resp.Body)
+			defer resp.Body.Close()
 		}
 
-		if data.Title == "" {
-			logger.Warnf("Failed to get page of novel %s", novelName)
-			return
-		}
-		if scraper.app.ExportMetaData(data.Title, data) != nil {
+		if scraper.app.ExportMetaData(data.Title, data, true) != nil {
 			return
 		}
 	}
@@ -177,7 +194,7 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 		if scraper.app.ExportNovelChapter(data.Title, chapterData) != nil {
 			return
 		}
-		if scraper.app.ExportMetaData(data.Title, data) != nil {
+		if scraper.app.ExportMetaData(data.Title, data, false) != nil {
 			return
 		}
 	}

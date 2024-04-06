@@ -42,7 +42,7 @@ func NewPostgresClient(config config.PostgresConfigStruct) *PostgresClient {
 }
 
 // Todo update NovelMetaData to NovelData
-func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) error {
+func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData, genre bool) error {
 	author := gen_models.Author{
 		Name: data.Author,
 	}
@@ -74,6 +74,19 @@ func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData) err
 	if err != nil {
 		return logger.Errorf("failed to upsert metadata for novel %s", data.Title)
 	}
+
+	if genre {
+		genres := []*gen_models.Genre{}
+		for _, genre := range data.Genres {
+			genres = append(genres, &gen_models.Genre{Name: genre})
+		}
+
+		err = novel.AddFKGenreNameGenres(context.TODO(), client.db, false, genres...)
+		if err != nil {
+			logger.Fatalf("failed to add genre for novel %s : %s", data.Title, err.Error())
+		}
+	}
+
 	return nil
 }
 
@@ -104,6 +117,20 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 	return nil
 }
 
+func (client *PostgresClient) InsertOrUpdateGenre(name string) error {
+	genre := gen_models.Genre{
+		Name: name,
+	}
+
+	err := genre.Upsert(context.TODO(), client.db, false, []string{}, boil.Infer(), boil.Infer())
+
+	if err != nil {
+		return logger.Errorf("failed to add genre %s : %s", name, err.Error())
+	}
+
+	return nil
+}
+
 func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, error) {
 	var na novelAuthor
 
@@ -115,7 +142,8 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	).Bind(context.TODO(), client.db, &na)
 
 	if err != nil {
-		return models.NovelData{}, logger.Errorf("failed to get novel with title %s : %s", title, err.Error())
+		logger.Warnf("failed to get novel with title %s : %s", title, err.Error())
+		return models.NovelData{}, nil
 	}
 
 	return models.NovelData{

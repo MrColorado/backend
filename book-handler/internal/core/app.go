@@ -48,7 +48,7 @@ func (app *App) ExportNovelChapter(novelName string, novelChapterData models.Nov
 }
 
 // ExportMetaData write novel meta data on s3
-func (app *App) ExportMetaData(novelName string, data models.NovelMetaData) error {
+func (app *App) ExportMetaData(novelName string, data models.NovelMetaData, genre bool) error {
 	coverName := "cover.jpg"
 	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
 	err := app.s3.UploadFile(novelName, coverName, data.CoverData)
@@ -56,10 +56,21 @@ func (app *App) ExportMetaData(novelName string, data models.NovelMetaData) erro
 		return logger.Errorf("failed to save cover of novel %s in s3", data.Title)
 	}
 	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
-	err = app.db.InsertOrUpdateNovel(data)
+
+	if genre {
+		for _, name := range data.Genres {
+			err = app.db.InsertOrUpdateGenre(name)
+			if err != nil {
+				return logger.Errorf("failed to export genre %s of novel %s in database", name, data.Title)
+			}
+		}
+	}
+
+	err = app.db.InsertOrUpdateNovel(data, genre)
 	if err != nil {
 		return logger.Errorf("failed to export metedata of novel %s in database", data.Title)
 	}
+
 	return nil
 }
 

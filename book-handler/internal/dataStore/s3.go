@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	bucketName = "novels"
+	bucketName = "novel"
 )
 
 type S3Client struct {

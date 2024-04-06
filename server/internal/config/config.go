@@ -7,9 +7,10 @@ import (
 )
 
 type AwsConfigStruct struct {
-	S3Location string
-	S3UserName string
-	S3Password string
+	S3UserName   string
+	S3Password   string
+	S3InternHost string
+	S3ExternHost string
 }
 
 type PostgresConfigStruct struct {
@@ -44,9 +45,10 @@ func InitLogger() {
 func GetConfig() Config {
 	config := Config{
 		AwsConfig: AwsConfigStruct{
-			S3Location: os.Getenv("S3_HOST"),
-			S3UserName: os.Getenv("S3_USERNAME"),
-			S3Password: os.Getenv("S3_PASSWORD"),
+			S3UserName:   os.Getenv("S3_USERNAME"),
+			S3Password:   os.Getenv("S3_PASSWORD"),
+			S3InternHost: os.Getenv("S3_INTERN_HOST"),
+			S3ExternHost: os.Getenv("S3_EXTERN_HOST"),
 		},
 		PostgresConfig: PostgresConfigStruct{
 			PostgresDB:       os.Getenv("POSTGRES_DB"),
