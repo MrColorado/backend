@@ -16,10 +16,14 @@
 
 # Generated files 
 gen_models
-*.pb.go
+# *.pb.go TODO find how to generate proto files in docker, we should not push generated files
 
-
-epubScraper
-volumes
 .env
 .vscode
+
+volumes
+
+go.work.sum
+book-handler/book-handler
+server/server
+schemas/old_novel_schema.sql

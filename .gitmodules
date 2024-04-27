@@ -1,0 +1,3 @@
+[submodule "server/internal/grpc/protocol"]
+	path = server/internal/grpc/protocol
+	url = https://github.com/MrColorado/website-protocol.git

@@ -1,0 +1,13 @@
+output   = "gen_models"
+pkgname  = "gen_models"
+wipe     = true
+no-tests = true
+add-enum-types = true
+
+[psql]
+    dbname = "novel"
+    host   = "host.docker.internal"
+    port   = 5432
+    user   = "root_user"
+    pass   = "ksdjfhklsjdfh"
+    sslmode = "disable"

@@ -14,24 +14,68 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_USERNAME}
       MINIO_ROOT_PASSWORD: ${S3_PASSWORD}
-    command: server --address 0.0.0.0:9000 --console-address 0.0.0.0:9001 /data
+      MINIO_ADDRESS: :9000
+      MINIO_CONSOLE_ADDRESS: :9001
+    command: server /data
+  
+  # createbuckets:
+  #   image: minio/mc
+  #   depends_on:
+  #     - s3
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     /usr/bin/mc config host add s3 http://s3:9000 ${S3_USERNAME} ${S3_PASSWORD};
+  #     exit 0;
+  #     "
+    # /usr/bin/mc alias set 127.0.0.1:9000 s3:9000 ${S3_USERNAME} ${S3_PASSWORD};
+    # /usr/bin/mc mb s3/somebucketname;
+    # /usr/bin/mc policy set public s3/somebucketname;
 
   database:
     image: postgres:15.2
-    container_name: postgres
+    container_name: database
     environment:
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     expose:
-      - "5432"
+      - 5432
     ports:
       - "5432:5432"
     volumes:
       - ./volumes/postgres/:/var/lib/postgresql/data/
 
+  nats:
+    image: nats-streaming:latest
+    container_name: nats
+    expose: 
+      - 4222
+      - 8222
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  # nats-ui-1:
+  #   container_name: nats-ui-1
+  #   image: piotrpersona/nats-streaming-ui:latest
+  #   ports:
+  #     - "8282:8282"
+
+  # nats-ui-2:
+  #   container_name: nats-ui-2
+  #   image: sphqxe/nats-webui:latest
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - nats
+
   envoy:
-    image: envoy-v1
+    build:
+      context: .
+      dockerfile: envoy/Dockerfile
+      args:
+        DIRECTORY: envoy
+    image: envoy
     container_name: envoy
     expose:
       - "8080"
@@ -40,9 +84,14 @@ services:
       - "8080:8080"
       - "8081:8081"
 
-  scraper:
-    image: scraper-v1
-    container_name: scraper
+  book-handler:
+    build:
+      context: .
+      dockerfile: book-handler/Dockerfile
+      args:
+        DIRECTORY: book-handler
+    image: book_handler
+    container_name: book-handler
     environment:
       S3_HOST: http://s3:9000
       S3_USERNAME: ${S3_USERNAME}
@@ -50,10 +99,35 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      FILES_FOLDER: "/"
       POSTGRES_HOST: database
+      NATS_HOST: nats:4222
+    depends_on:
+      - s3
+      - nats
+      - database
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      args:
+        DIRECTORY: server
+    image: server
+    container_name: server
     ports:
       - "55051:55051"
-
-# dc exec database pg_dump -U $POSTGRES_USER novel_database --schema-only
-# sqlboiler -c schemas/sqlboiler.toml psql
-# psql databasename < data_base_dump
+    environment:
+      S3_USERNAME: ${S3_USERNAME}
+      S3_PASSWORD: ${S3_PASSWORD}
+      S3_INTERN_HOST: http://s3:9000
+      S3_EXTERN_HOST: http://s3:8080
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: database
+      NATS_HOST: nats
+    depends_on:
+      - s3
+      - nats
+      - database
