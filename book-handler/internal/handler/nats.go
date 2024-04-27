@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/MrColorado/backend/book-handler/internal/config"
@@ -45,6 +46,7 @@ func NewNatsClient(cfg config.NatsConfigStruct, ctx context.Context) (*NatsClien
 
 func (nc *NatsClient) AddChanQueueSub(subject string, group string) error {
 	logger.Infof("Listen on %s with group : %s", subject, group)
+
 	input := make(chan *nats.Msg)
 	sub, err := nc.conn.ChanQueueSubscribe(subject, group, input)
 	if err != nil {
@@ -80,7 +82,9 @@ func (nc *NatsClient) AddChanQueueSub(subject string, group string) error {
 	return nil
 }
 
-func (nc *NatsClient) RemoveChanQueueSub(subject string) error {
+func (nc *NatsClient) RemoveChanQueueSub(subject string, del bool) error {
+	logger.Infof("Remove sub on %s", subject)
+
 	holder, ok := nc.subDataMap[subject]
 	if !ok {
 		return logger.Errorf("service is not listening on %s", subject)
@@ -93,7 +97,12 @@ func (nc *NatsClient) RemoveChanQueueSub(subject string) error {
 	}
 
 	close(holder.input)
-	delete(nc.subDataMap, subject)
+	if del {
+		delete(nc.subDataMap, subject)
+	}
+
+	bs, _ := json.Marshal(nc.subDataMap)
+	logger.Infof("Map state : %s", bs)
 	return nil
 }
 

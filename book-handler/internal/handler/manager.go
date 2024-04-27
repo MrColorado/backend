@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/MrColorado/backend/book-handler/internal/scraper"
 	msgType "github.com/MrColorado/backend/internal/message"
@@ -20,7 +21,7 @@ type ScraperManager struct {
 
 func NewScraperManager(nats *NatsClient, scraperCfg map[string]int, convsName []string) (*ScraperManager, error) {
 	meta := []scraper.Scraper{}
-	for name, _ := range scraperCfg {
+	for name := range scraperCfg {
 		scrp, err := scraper.ScraperCreator(name)
 		if err != nil {
 			return nil, logger.Errorf("failed to create scraper %s", name)
@@ -43,7 +44,7 @@ func NewScraperManager(nats *NatsClient, scraperCfg map[string]int, convsName []
 
 func (sm *ScraperManager) Run() {
 	sm.nats.AddChanQueueSub("scrapable", "bookHandlerGroup")
-	for scrpName, _ := range sm.scraperPools {
+	for scrpName := range sm.scraperPools {
 		sm.nats.AddChanQueueSub(fmt.Sprintf("scraper.%s", scrpName), "bookHandlerGroup")
 	}
 
@@ -61,13 +62,21 @@ func (sm *ScraperManager) msgHandler(data []byte, subject string) {
 
 	switch msg.Event {
 	case "scrape":
-		ok, err := sm.scrape(msg.Payload)
+		var rqt msgType.ScrapeNovelRqt
+		err := json.Unmarshal(msg.Payload, &rqt)
+		if err != nil {
+			logger.Error("failed to cast data to type msgType.ScrapeNovelRqt")
+			return
+		}
+
+		canQueue, err := sm.scrape(rqt)
 		if err != nil {
 			return
 		}
 
-		if !ok {
-			sm.nats.RemoveChanQueueSub(subject) // TODO how de we subscribe again after ?
+		if !canQueue {
+			sm.nats.RemoveChanQueueSub(subject, false)
+			sm.delaySub(subject, rqt.ScraperName)
 		}
 	}
 }
@@ -124,19 +133,49 @@ func (sm *ScraperManager) canScrape(data json.RawMessage) ([]byte, error) {
 	return rsp, nil
 }
 
-func (sm *ScraperManager) scrape(data json.RawMessage) (bool, error) {
-	var rqt msgType.ScrapeNovelRqt
-	err := json.Unmarshal(data, &rqt)
-	if err != nil {
-		return true, logger.Error("failed to cast data to type msgType.ScrapeNovelRqt")
-	}
-
+func (sm *ScraperManager) scrape(rqt msgType.ScrapeNovelRqt) (bool, error) {
 	wp, ok := sm.scraperPools[rqt.ScraperName]
 	if !ok {
 		return true, logger.Errorf("scraper %s does not exist", rqt.ScraperName)
 	}
+	wp.Execute(job{NovelName: rqt.NovelTitle})
 
-	return wp.Execute(job{NovelName: rqt.NovelTitle}), nil
+	return wp.CanQueuJob(), nil
+}
+
+func (sm *ScraperManager) delaySub(subject string, scraperName string) {
+	logger.Info("Start delaySub")
+	ticker := time.NewTicker(500 * time.Millisecond)
+
+	tempo := make(chan bool)
+
+	go func() {
+		tempo <- true
+		for {
+			select {
+			// Add ctx to cancel go routing & add waitgroup
+			case <-ticker.C:
+				logger.Infof("Tick for scraper : %s", scraperName)
+
+				wp, ok := sm.scraperPools[scraperName]
+				if !ok {
+					logger.Errorf("scraper %s does not exist", scraperName)
+					return
+				}
+
+				if wp.CanQueuJob() {
+					sm.nats.AddChanQueueSub(subject, "bookHandlerGroup")
+					ticker.Stop()
+					return
+				}
+
+			}
+		}
+	}()
+
+	<-tempo
+	close(tempo)
+	logger.Info("End delaySub")
 }
 
 func generateError(code int, value string) []byte {

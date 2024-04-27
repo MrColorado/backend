@@ -161,3 +161,24 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 		NextURL:        na.NextURL,
 	}, nil
 }
+
+func (client *PostgresClient) GetBookByTitle(title string, start int) (models.BookData, error) {
+	var book gen_models.Book
+	err := gen_models.NewQuery(
+		qm.Select("novel.id", "fk_novel_id", "start", "end"),
+		qm.From("book"),
+		qm.InnerJoin("novel on novel.id = book.fk_novel_id"),
+		qm.Where("novel.title = ?", title),
+		qm.Where("start = ?", start),
+	).Bind(context.TODO(), client.db, &book)
+
+	if err != nil {
+		return models.BookData{}, err
+	}
+
+	return models.BookData{
+		NovelId: book.FKNovelID,
+		Start:   book.Start,
+		End:     book.End,
+	}, nil
+}

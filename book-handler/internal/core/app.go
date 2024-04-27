@@ -76,20 +76,30 @@ func (app *App) ExportMetaData(novelName string, data models.NovelMetaData, genr
 
 // ExportBook return the chapter number of a novel
 func (app *App) ExportBook(novelName string, bookName string, content []byte, metaData models.BookData) error {
-	exportName := fmt.Sprintf("%s.epub", bookName)
-	logger.Infof("Export book %s of novel %s", exportName, novelName)
-	err := app.s3.UploadFile(fmt.Sprintf("%s/epub", novelName), exportName, content)
-	if err != nil {
-		return logger.Errorf("failed to export book %s of novel %s", exportName, novelName)
+	filePath := fmt.Sprintf("%s/epub", novelName)
+
+	book, err := app.db.GetBookByTitle(novelName, metaData.Start)
+	if err == nil && metaData.End > book.End {
+		logger.Info("New book contains more chapters new %d, current %s removing older book from S3", metaData.End, book.End)
+		fileName := fmt.Sprintf("%s-%04d-%04d.epub", novelName, metaData.Start, metaData.End)
+		if err = app.s3.RemoveFile(filePath, fileName); err != nil {
+			logger.Errorf("Failed to remove file %s at %s", fileName, filePath)
+		}
 	}
 
-	// TODO create data struct that contain every field instead of doing this kind on request
-	novelData, err := app.db.GetNovelByTitle(novelName)
+	novel, err := app.db.GetNovelByTitle(novelName)
 	if err != nil {
-		return logger.Errorf("failed to get novel %s", novelName)
+		return logger.Errorf("Failed to get novel %s : %s", novelName, err.Error())
 	}
 
-	metaData.NovelId = novelData.CoreData.Id
+	fileName := fmt.Sprintf("%s.epub", bookName)
+	err = app.s3.UploadFile(filePath, fileName, content)
+	if err != nil {
+		return logger.Errorf("failed to export book %s of novel %s", fileName, novelName)
+	}
+	logger.Infof("Export book %s of novel %s", fileName, novelName)
+
+	metaData.NovelId = novel.CoreData.Id
 	err = app.db.InsertOrUpdateBook(metaData)
 	if err != nil {
 		return logger.Errorf("failed to save book %s", novelName)

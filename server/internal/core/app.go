@@ -83,7 +83,6 @@ func (app *App) ListNovels(startBy string) ([]models.PartialNovelData, error) {
 		if err != nil {
 			continue
 		}
-		logger.Infof("CoverPath: %s, Cover Url: %s", novels[i].CoverPath, coverUrl)
 		novels[i].CoverPath = coverUrl
 	}
 

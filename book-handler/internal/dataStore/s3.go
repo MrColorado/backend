@@ -77,3 +77,15 @@ func (client *S3Client) DownLoadFile(filePath string, fileName string) ([]byte, 
 	}
 	return body, nil
 }
+
+func (client *S3Client) RemoveFile(filePath string, fileName string) error {
+	_, err := client.s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(fmt.Sprintf("%s/%s", filePath, fileName)),
+	})
+	if err != nil {
+		return logger.Errorf("Failed to remove file %v:%v : %v\n", bucketName, filePath, err)
+	}
+
+	return nil
+}

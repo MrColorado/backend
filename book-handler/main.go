@@ -40,7 +40,7 @@ func main() {
 // 	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
 
 // 	db := dataStore.NewPostgresClient(config.PostgresConfig)
-// 	db.GetNovelByTitle("the frozen player returns")
+// 	db.GetBookByTitle("big life", 101)
 // }
 
 // func main() {

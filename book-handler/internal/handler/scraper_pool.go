@@ -92,7 +92,6 @@ func newWorkerPool(scrpName string, convsName []string, noOfWorkers int, queueSi
 
 // createPool creates the workers and start listening on the jobQueue
 func (t *WorkerPool) createPool() error {
-	logger.Info("createPool")
 	for i := 0; i < t.noOfWorkers; i++ {
 		scrp, err := scraper.ScraperCreator(t.scrpName)
 		if err != nil {
@@ -154,6 +153,10 @@ func (t *WorkerPool) Execute(j job) bool {
 	}
 	t.jobQueue <- j
 	return true
+}
+
+func (t *WorkerPool) CanQueuJob() bool {
+	return len(t.jobQueue) < int(t.queueSize)
 }
 
 // Close will close the threadpool
