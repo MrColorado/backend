@@ -4,54 +4,54 @@ import "time"
 
 // NovelChapterData contain data of a chapter
 type NovelChapterData struct {
-	Chapter   int
 	Paragraph []string
+	Chapter   int
 }
 
 // BookData contain information on chapters' regroupment
 type BookData struct {
-	Id      string
-	NovelId string
+	ID      string
+	NovelID string
 	Start   int
 	End     int
 }
 
 type PartialNovelData struct {
-	Id         string
+	ID         string
 	Title      string
 	Author     string
 	CoverPath  string
 	Summary    string
-	Genres     []string
 	LastUpdate time.Time
+	Genres     []string
 }
 
 type NovelData struct {
 	CoreData       PartialNovelData
-	NbChapter      int
-	CurrentChapter int
 	FirstURL       string
 	NextURL        string
 	Tags           []string
+	NbChapter      int
+	CurrentChapter int
 }
 
 // SCRAPER //
 
 // NovelMetaData contain data on the novel
 type NovelMetaData struct {
+	LastUpdate     time.Time
 	Title          string
 	Author         string
 	CoverPath      string
 	FirstURL       string
 	Summary        string
 	NextURL        string
-	NbChapter      int
-	CurrentChapter int
-	Status         int
 	CoverData      []byte
 	Genres         []string
 	Tags           []string
-	LastUpdate     time.Time
+	NbChapter      int
+	CurrentChapter int
+	Status         int
 }
 
 func MetaToNovel(data NovelMetaData) NovelData {

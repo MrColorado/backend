@@ -19,9 +19,9 @@ var (
 
 func main() {
 	config.InitLogger()
-	config := config.GetConfig()
-	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
-	nats, err := handler.NewNatsClient(config.NatsConfig, context.TODO())
+	cfg := config.GetConfig()
+	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
+	nats, err := handler.NewNatsClient(cfg.NatsConfig, context.TODO())
 	if err != nil {
 		logger.Info(err.Error())
 		return
@@ -39,7 +39,7 @@ func main() {
 // 	config := config.GetConfig()
 // 	logger.Infof("Misc : %s", config.MiscConfig.FilesFolder)
 
-// 	db := dataStore.NewPostgresClient(config.PostgresConfig)
+// 	db := data.NewPostgresClient(config.PostgresConfig)
 // 	db.GetBookByTitle("big life", 101)
 // }
 

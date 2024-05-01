@@ -18,9 +18,9 @@ import (
 )
 
 type Server struct {
-	app *core.App
-
 	novelpb.UnimplementedNovelServerServer
+
+	app *core.App
 }
 
 func NewSever(app *core.App) *Server {
@@ -50,7 +50,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 	switch req.OneofIdOrName.(type) {
 	case *novelpb.GetNovelRequest_Id:
 		logger.Infof("Novel Service - Called GetNovel : %s", req.GetId())
-		data, err = server.app.GetNovelById(req.GetId())
+		data, err = server.app.GetNovelByID(req.GetId())
 	case *novelpb.GetNovelRequest_Title:
 		logger.Infof("Novel Service - Called GetNovel : %s", req.GetTitle())
 		data, err = server.app.GetNovelByTitle(common.HarmonizeTitle(req.GetTitle()))
@@ -60,12 +60,12 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	chpData, err := server.app.ListBook(data.CoreData.Id)
+	chpData, err := server.app.ListBook(data.CoreData.ID)
 	if err != nil {
 		return &novelpb.GetNovelResponse{}, status.Error(codes.NotFound, "Not found")
 	}
 
-	var chapters []*novelpb.Chapter
+	chapters := []*novelpb.Chapter{}
 	for _, chapter := range chpData {
 		chapters = append(chapters, &novelpb.Chapter{
 			Start: int64(chapter.Start),
@@ -76,7 +76,7 @@ func (server *Server) GetNovel(ctx context.Context, req *novelpb.GetNovelRequest
 	return &novelpb.GetNovelResponse{
 		Novel: &novelpb.FullNovel{
 			Novel: &novelpb.PartialNovel{
-				Id:       data.CoreData.Id,
+				Id:       data.CoreData.ID,
 				Title:    data.CoreData.Title,
 				Author:   data.CoreData.Author,
 				Summary:  data.CoreData.Summary,
@@ -101,7 +101,7 @@ func (server *Server) ListNovel(ctx context.Context, req *novelpb.ListNovelReque
 	response := novelpb.ListNovelResponse{}
 	for _, data := range datas {
 		response.Novels = append(response.Novels, &novelpb.PartialNovel{
-			Id:       data.Id,
+			Id:       data.ID,
 			Title:    data.Title,
 			Author:   data.Author,
 			Summary:  data.Summary,
@@ -117,7 +117,7 @@ func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNove
 	logger.Infof("Novel Service - Called RequestNovel : %s", req.GetTitle())
 	err := server.app.RequestNovel(common.HarmonizeTitle(req.Title))
 	if err != nil {
-		return &novelpb.RequestNovelResponse{Success: false}, nil
+		return &novelpb.RequestNovelResponse{Success: false}, status.Error(codes.NotFound, "Not found")
 	}
 	return &novelpb.RequestNovelResponse{Success: true}, nil
 }
@@ -125,7 +125,8 @@ func (server *Server) RequestNovel(ctx context.Context, req *novelpb.RequestNove
 func (server *Server) Run() {
 	fmt.Println("Running novel Service")
 
-	lis, err := net.Listen("tcp", "0.0.0.0:55051")
+	// TODO CHECK
+	lis, err := net.Listen("tcp", "0.0.0.0:55051") //nolint:gosec
 	if err != nil {
 		logger.Fatalf("Novel Service - ERROR:", err.Error())
 	}

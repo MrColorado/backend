@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/MrColorado/backend/book-handler/internal/dataStore"
+	"github.com/MrColorado/backend/book-handler/internal/data"
 	"github.com/MrColorado/backend/book-handler/internal/models"
 	"github.com/MrColorado/backend/logger"
 	"github.com/google/uuid"
@@ -20,11 +20,11 @@ const (
 )
 
 type App struct {
-	s3 *dataStore.S3Client
-	db *dataStore.PostgresClient
+	s3 *data.S3Client
+	db *data.PostgresClient
 }
 
-func NewApp(s3 *dataStore.S3Client, db *dataStore.PostgresClient) *App {
+func NewApp(s3 *data.S3Client, db *data.PostgresClient) *App {
 	return &App{
 		s3: s3,
 		db: db,
@@ -40,7 +40,7 @@ func (app *App) ExportNovelChapter(novelName string, novelChapterData models.Nov
 
 	exportName := fmt.Sprintf("%04d.json", novelChapterData.Chapter)
 	logger.Infof("Export %s/raw/%s", novelName, exportName)
-	err = app.s3.UploadFile(fmt.Sprintf("%s/raw", novelName), exportName, content)
+	err = app.s3.UploadFile(novelName+"/raw", exportName, content)
 	if err != nil {
 		return logger.Errorf("failed to export chapter %d of novel %s", novelChapterData.Chapter, novelName)
 	}
@@ -48,27 +48,27 @@ func (app *App) ExportNovelChapter(novelName string, novelChapterData models.Nov
 }
 
 // ExportMetaData write novel meta data on s3
-func (app *App) ExportMetaData(novelName string, data models.NovelMetaData, genre bool) error {
+func (app *App) ExportMetaData(novelName string, model models.NovelMetaData, genre bool) error {
 	coverName := "cover.jpg"
-	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
-	err := app.s3.UploadFile(novelName, coverName, data.CoverData)
+	model.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
+	err := app.s3.UploadFile(novelName, coverName, model.CoverData)
 	if err != nil {
-		return logger.Errorf("failed to save cover of novel %s in s3", data.Title)
+		return logger.Errorf("failed to save cover of novel %s in s3", model.Title)
 	}
-	data.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
+	model.CoverPath = fmt.Sprintf("%s/%s", novelName, coverName)
 
 	if genre {
-		for _, name := range data.Genres {
+		for _, name := range model.Genres {
 			err = app.db.InsertOrUpdateGenre(name)
 			if err != nil {
-				return logger.Errorf("failed to export genre %s of novel %s in database", name, data.Title)
+				return logger.Errorf("failed to export genre %s of novel %s in database", name, model.Title)
 			}
 		}
 	}
 
-	err = app.db.InsertOrUpdateNovel(data, genre)
+	err = app.db.InsertOrUpdateNovel(model, genre)
 	if err != nil {
-		return logger.Errorf("failed to export metedata of novel %s in database", data.Title)
+		return logger.Errorf("failed to export metedata of novel %s in database", model.Title)
 	}
 
 	return nil
@@ -76,7 +76,7 @@ func (app *App) ExportMetaData(novelName string, data models.NovelMetaData, genr
 
 // ExportBook return the chapter number of a novel
 func (app *App) ExportBook(novelName string, bookName string, content []byte, metaData models.BookData) error {
-	filePath := fmt.Sprintf("%s/epub", novelName)
+	filePath := novelName + "/epub"
 
 	book, err := app.db.GetBookByTitle(novelName, metaData.Start)
 	if err == nil && metaData.End > book.End {
@@ -92,14 +92,14 @@ func (app *App) ExportBook(novelName string, bookName string, content []byte, me
 		return logger.Errorf("Failed to get novel %s : %s", novelName, err.Error())
 	}
 
-	fileName := fmt.Sprintf("%s.epub", bookName)
+	fileName := bookName + ".epub"
 	err = app.s3.UploadFile(filePath, fileName, content)
 	if err != nil {
 		return logger.Errorf("failed to export book %s of novel %s", fileName, novelName)
 	}
 	logger.Infof("Export book %s of novel %s", fileName, novelName)
 
-	metaData.NovelId = novel.CoreData.Id
+	metaData.NovelID = novel.CoreData.ID
 	err = app.db.InsertOrUpdateBook(metaData)
 	if err != nil {
 		return logger.Errorf("failed to save book %s", novelName)
@@ -110,42 +110,40 @@ func (app *App) ExportBook(novelName string, bookName string, content []byte, me
 
 // GetNovelChapter read novel chapter from s3
 func (app *App) GetNovelChapter(novelName string, chapter int) (models.NovelChapterData, error) {
-	content, err := app.s3.DownLoadFile(fmt.Sprintf("%s/raw", novelName), fmt.Sprintf("%04d.json", chapter))
+	content, err := app.s3.DownLoadFile(novelName+"/raw", fmt.Sprintf("%04d.json", chapter))
 	if err != nil {
 		return models.NovelChapterData{}, logger.Errorf("failed to get chapter %d of novel %s", chapter, novelName)
 	}
 
-	data := models.NovelChapterData{}
-	if json.Unmarshal([]byte(content), &data) != nil {
+	model := models.NovelChapterData{}
+	if json.Unmarshal(content, &model) != nil {
 		return models.NovelChapterData{}, logger.Errorf("failed to unmarshal metadata of novel %s", novelName)
 	}
-	return data, nil
+	return model, nil
 }
 
-// ImportMetaData read novel meta data from s3
 func (app *App) GetMetaData(title string) (models.NovelMetaData, error) {
-	data, err := app.db.GetNovelByTitle(title)
+	model, err := app.db.GetNovelByTitle(title)
 	if err != nil {
 		return models.NovelMetaData{}, logger.Errorf("failed to get meta_data of novel %s", title)
 	}
-	return models.NovelToMeta(data), nil
+	return models.NovelToMeta(model), nil
 }
 
-// NumberOfChapter return the chapter number of a novel
 func (app *App) GetNbChapter(title string) (int, error) {
-	data, err := app.db.GetNovelByTitle(title)
+	model, err := app.db.GetNovelByTitle(title)
 	if err != nil {
 		return 0, logger.Errorf("failed to get nb chapter of %s", title)
 	}
-	return data.NbChapter, nil
+	return model.NbChapter, nil
 }
 
 func (app *App) GetNovelByTitle(novelName string) (models.NovelData, error) {
-	data, err := app.db.GetNovelByTitle(novelName)
+	model, err := app.db.GetNovelByTitle(novelName)
 	if err != nil {
 		return models.NovelData{}, logger.Errorf("failed to get meta_data of novel %s", novelName)
 	}
-	return data, nil
+	return model, nil
 }
 
 func (app *App) GetCoverDiskPath(title string) (string, error) {

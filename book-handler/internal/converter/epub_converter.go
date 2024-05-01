@@ -62,8 +62,8 @@ func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, end
 
 	for i := startChapter; i <= endChapter; i++ {
 		chapterData, err := cvt.app.GetNovelChapter(novelName, i)
-		chapterData.Chapter = i
 		if err != nil {
+			logger.Errorf("failed to get chapter %d of novel %s : %s", i, novelName, err.Error())
 			continue
 		}
 

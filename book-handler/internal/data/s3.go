@@ -1,4 +1,4 @@
-package dataStore
+package data
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	cfg "github.com/MrColorado/backend/book-handler/internal/config"
+	bkhConfig "github.com/MrColorado/backend/book-handler/internal/config"
 	"github.com/MrColorado/backend/logger"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -23,8 +23,8 @@ type S3Client struct {
 	preSignedClient *s3.PresignClient
 }
 
-func NewAwsClient(awsConfig cfg.AwsConfigStruct) *S3Client {
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+func NewAwsClient(awsConfig bkhConfig.AwsConfigStruct) *S3Client {
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL:               awsConfig.S3Location,
 			HostnameImmutable: true,

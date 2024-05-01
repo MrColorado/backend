@@ -1,4 +1,4 @@
-package dataHandler
+package data
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type S3Client struct {
 }
 
 func getS3Client(host string, accessKey string, secretKey string) *s3.Client {
-	customInternResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+	customInternResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL:               host,
 			HostnameImmutable: true,
@@ -66,7 +66,7 @@ func (client *S3Client) DownLoadFile(filePath string, fileName string) ([]byte, 
 }
 
 func (client *S3Client) GetPreSignedLink(filePath string) (string, error) {
-	presignedUrl, err := client.preSignedClient.PresignGetObject(context.TODO(),
+	presignedURL, err := client.preSignedClient.PresignGetObject(context.TODO(),
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(filePath),
@@ -75,5 +75,5 @@ func (client *S3Client) GetPreSignedLink(filePath string) (string, error) {
 	if err != nil {
 		return "", logger.Errorf("Couldn't presigned file %v : %v\n", filePath, err)
 	}
-	return presignedUrl.URL, nil
+	return presignedURL.URL, nil
 }

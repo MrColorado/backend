@@ -1,6 +1,6 @@
 //go:generate sqlboiler -c ./../../../schemas/sqlboiler.toml --wipe psql
 
-package dataStore
+package data
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/MrColorado/backend/book-handler/internal/config"
-	"github.com/MrColorado/backend/book-handler/internal/dataStore/gen_models"
+	"github.com/MrColorado/backend/book-handler/internal/data/gen_models"
 	"github.com/MrColorado/backend/book-handler/internal/models"
 	"github.com/MrColorado/backend/logger"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -19,16 +19,16 @@ import (
 )
 
 type novelAuthor struct {
-	gen_models.Novel `boil:",bind"`
 	AuthorName       string `boil:"name"`
+	gen_models.Novel `boil:",bind"`
 }
 
 type PostgresClient struct {
 	db *sql.DB
 }
 
-func NewPostgresClient(config config.PostgresConfigStruct) *PostgresClient {
-	url := fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", config.PostgresDB, config.PostgresUser, config.PostgresPassword, config.PostgresHost)
+func NewPostgresClient(cfg config.PostgresConfigStruct) *PostgresClient {
+	url := fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable", cfg.PostgresDB, cfg.PostgresUser, cfg.PostgresPassword, cfg.PostgresHost)
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		logger.Warnf("failed to create connection to %s : %s", url, err.Error())
@@ -41,8 +41,8 @@ func NewPostgresClient(config config.PostgresConfigStruct) *PostgresClient {
 	}
 }
 
-// Todo update NovelMetaData to NovelData
 func (client *PostgresClient) InsertOrUpdateNovel(data models.NovelMetaData, genre bool) error {
+	// Todo update NovelMetaData to NovelData
 	author := gen_models.Author{
 		Name: data.Author,
 	}
@@ -94,7 +94,7 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 	// TODO migrate this to request in on sequence in order to keep data coherent even if one fail
 	now := time.Now()
 	book := gen_models.Book{
-		FKNovelID:  data.NovelId,
+		FKNovelID:  data.NovelID,
 		End:        data.End,
 		Start:      data.Start,
 		LastUpdate: now,
@@ -102,16 +102,16 @@ func (client *PostgresClient) InsertOrUpdateBook(data models.BookData) error {
 
 	err := book.Upsert(context.TODO(), client.db, true, []string{"fk_novel_id", "start"}, boil.Greylist("end", "last_update"), boil.Infer())
 	if err != nil {
-		return logger.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelId, data.Start, data.End)
+		return logger.Errorf("failed to upsert book for novel %s starting %d and ending %d", data.NovelID, data.Start, data.End)
 	}
 
 	novel := gen_models.Novel{
-		ID:         data.NovelId,
+		ID:         data.NovelID,
 		LastUpdate: now,
 	}
 	_, err = novel.Update(context.TODO(), client.db, boil.Whitelist("last_update"))
 	if err != nil {
-		return logger.Errorf("failed to update last_update for for novel %s", data.NovelId)
+		return logger.Errorf("failed to update last_update for novel %s", data.NovelID)
 	}
 
 	return nil
@@ -148,7 +148,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 
 	return models.NovelData{
 		CoreData: models.PartialNovelData{
-			Id:         na.ID,
+			ID:         na.ID,
 			Title:      na.Title,
 			Author:     na.AuthorName,
 			CoverPath:  na.CoverPath,
@@ -177,7 +177,7 @@ func (client *PostgresClient) GetBookByTitle(title string, start int) (models.Bo
 	}
 
 	return models.BookData{
-		NovelId: book.FKNovelID,
+		NovelID: book.FKNovelID,
 		Start:   book.Start,
 		End:     book.End,
 	}, nil

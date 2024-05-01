@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/MrColorado/backend/book-handler/internal/config"
@@ -19,12 +18,11 @@ type subDataHolder struct {
 }
 
 type NatsClient struct {
-	wg  sync.WaitGroup
-	ctx context.Context
-
+	ctx        context.Context
 	conn       *nats.Conn
 	input      chan *nats.Msg
 	subDataMap map[string]subDataHolder
+	wg         sync.WaitGroup
 }
 
 func NewNatsClient(cfg config.NatsConfigStruct, ctx context.Context) (*NatsClient, error) {
@@ -101,8 +99,6 @@ func (nc *NatsClient) RemoveChanQueueSub(subject string, del bool) error {
 		delete(nc.subDataMap, subject)
 	}
 
-	bs, _ := json.Marshal(nc.subDataMap)
-	logger.Infof("Map state : %s", bs)
 	return nil
 }
 

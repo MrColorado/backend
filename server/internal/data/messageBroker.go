@@ -1,4 +1,4 @@
-package dataHandler
+package data
 
 import (
 	"time"

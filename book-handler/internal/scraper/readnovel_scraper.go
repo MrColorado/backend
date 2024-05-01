@@ -23,30 +23,30 @@ type ReadNovelScraper struct {
 	app       *core.App
 }
 
-func (scraper ReadNovelScraper) findNovelUrl(novelName string) (string, error) {
+func (scraper ReadNovelScraper) findNovelURL(novelName string) (string, error) {
 	url := fmt.Sprintf("%s/novel-list/search?keyword=%s", readNovelURL, strings.ReplaceAll(novelName, " ", "+"))
 	nbFound := 0
-	novelUrl := ""
+	novelURL := ""
 
 	scraper.collector.OnHTML(".list-novel", func(e *colly.HTMLElement) {
 		e.ForEach(".novel-title", func(_ int, title *colly.HTMLElement) {
 			nbFound += 1
-			novelUrl = fmt.Sprintf("%s%s", readNovelURL, title.ChildAttr("a", "href"))
+			novelURL = fmt.Sprintf("%s%s", readNovelURL, title.ChildAttr("a", "href"))
 		})
 	})
 
 	err := scraper.collector.Visit(url)
 	if err != nil {
-		return "", logger.Errorf("failed to visit url %s : %s", novelUrl, err.Error())
+		return "", logger.Errorf("failed to visit url %s : %s", novelURL, err.Error())
 	}
 
 	if nbFound == 1 {
-		return novelUrl, nil
+		return novelURL, nil
 	}
 	return "", nil
 }
 
-func (scraper ReadNovelScraper) getNbOfChapter(novelId string) int {
+func (scraper ReadNovelScraper) getNbOfChapter(novelID string) int {
 	counter := 0
 
 	scraper.collector.OnHTML(".panel-body", func(e *colly.HTMLElement) {
@@ -59,13 +59,13 @@ func (scraper ReadNovelScraper) getNbOfChapter(novelId string) int {
 		scraper.collector.OnHTMLDetach(".panel-body")
 	}()
 
-	scraper.collector.Visit("https://readnovelfull.com/ajax/chapter-archive?novelId=" + novelId)
+	scraper.collector.Visit("https://readnovelfull.com/ajax/chapter-archive?novelId=" + novelID)
 
 	return counter
 }
 
 func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
-	novelId := ""
+	novelID := ""
 	novelMetaData.CurrentChapter = 1
 
 	scraper.collector.OnHTML("#tab-description", func(e *colly.HTMLElement) {
@@ -75,7 +75,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML("#rating", func(e *colly.HTMLElement) {
-		novelId = e.Attr("data-novel-id")
+		novelID = e.Attr("data-novel-id")
 	})
 
 	scraper.collector.OnHTML(".title", func(e *colly.HTMLElement) {
@@ -121,7 +121,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 
 	scraper.collector.Visit(url)
 
-	novelMetaData.NbChapter = scraper.getNbOfChapter(novelId)
+	novelMetaData.NbChapter = scraper.getNbOfChapter(novelID)
 }
 
 func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
@@ -161,8 +161,8 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 	data, _ := scraper.app.GetMetaData(novelName)
 
 	if data.Title == "" {
-		novelUrl, _ := scraper.findNovelUrl(novelName)
-		scraper.scrapMetaData(novelUrl, &data)
+		novelURL, _ := scraper.findNovelURL(novelName)
+		scraper.scrapMetaData(novelURL, &data)
 
 		resp, err := http.Get(data.CoverPath)
 		if err == nil {
@@ -221,11 +221,11 @@ func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
 	novelName = common.HarmonizeTitle(novelName)
 	logger.Infof("CanScrapeNovel : %s", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))
-	novelUrl, err := scraper.findNovelUrl(novelName)
+	novelURL, err := scraper.findNovelURL(novelName)
 
 	if err != nil {
 		return false
 	}
 
-	return len(novelUrl) > 0
+	return len(novelURL) > 0
 }

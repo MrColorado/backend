@@ -1,6 +1,6 @@
 //go:generate sqlboiler -c ./../../../schemas/sqlboiler.toml --wipe psql
 
-package dataHandler
+package data
 
 import (
 	"context"
@@ -11,21 +11,21 @@ import (
 
 	"github.com/MrColorado/backend/logger"
 	"github.com/MrColorado/backend/server/internal/config"
-	"github.com/MrColorado/backend/server/internal/dataHandler/gen_models"
+	"github.com/MrColorado/backend/server/internal/data/gen_models"
 	"github.com/MrColorado/backend/server/internal/models"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type novelAuthor struct {
-	gen_models.Novel `boil:",bind"`
 	AuthorName       string `boil:"name"`
+	gen_models.Novel `boil:",bind"`
 }
 
 type novelGenres struct {
-	gen_models.Novel `boil:",bind"`
 	GenreName        string `boil:"genre_name"`
 	AuthorName       string `boil:"author_name"`
+	gen_models.Novel `boil:",bind"`
 }
 
 type PostgresClient struct {
@@ -44,11 +44,11 @@ func NewPostgresClient(cfg config.PostgresConfigStruct) *PostgresClient {
 	}
 }
 
-func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) {
+func (client *PostgresClient) GetNovelByID(id string) (models.NovelData, error) {
 	var na novelAuthor
 
 	err := gen_models.NewQuery(
-		qm.Select("author.name as name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
+		qm.Select("author.name as name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"), //nolint:lll
 		qm.From("novel"),
 		qm.InnerJoin("author on author.id = novel.fk_author_id"),
 		qm.Where("novel.id = ?", id),
@@ -60,7 +60,7 @@ func (client *PostgresClient) GetNovelById(id string) (models.NovelData, error) 
 
 	return models.NovelData{
 		CoreData: models.PartialNovelData{
-			Id:         na.ID,
+			ID:         na.ID,
 			Title:      na.Title,
 			Author:     na.AuthorName,
 			CoverPath:  na.CoverPath,
@@ -90,7 +90,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 
 	return models.NovelData{
 		CoreData: models.PartialNovelData{
-			Id:         na.ID,
+			ID:         na.ID,
 			Title:      na.Title,
 			Author:     na.AuthorName,
 			CoverPath:  na.CoverPath,
@@ -122,7 +122,7 @@ func (client *PostgresClient) ListNovels(title string) ([]models.PartialNovelDat
 
 	for i := 0; i < len(ng); {
 		pnd := models.PartialNovelData{
-			Id:         ng[i].ID,
+			ID:         ng[i].ID,
 			Title:      ng[i].Title,
 			CoverPath:  ng[i].CoverPath,
 			Summary:    ng[i].Summary,
@@ -131,7 +131,7 @@ func (client *PostgresClient) ListNovels(title string) ([]models.PartialNovelDat
 		}
 
 		genres := []string{}
-		for ; i < len(ng) && ng[i].ID == pnd.Id; i++ {
+		for ; i < len(ng) && ng[i].ID == pnd.ID; i++ {
 			genres = append(genres, ng[i].GenreName)
 		}
 		pnd.Genres = genres
@@ -142,8 +142,8 @@ func (client *PostgresClient) ListNovels(title string) ([]models.PartialNovelDat
 	return res, nil
 }
 
-func (client *PostgresClient) ListBooks(novelId string) ([]models.BookData, error) {
-	books, err := gen_models.Books(gen_models.BookWhere.FKNovelID.EQ(novelId)).All(context.TODO(), client.db)
+func (client *PostgresClient) ListBooks(novelID string) ([]models.BookData, error) {
+	books, err := gen_models.Books(gen_models.BookWhere.FKNovelID.EQ(novelID)).All(context.TODO(), client.db)
 
 	if err != nil {
 		return []models.BookData{}, logger.Errorf("failed to list novels")

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -12,11 +11,10 @@ import (
 )
 
 type ScraperManager struct {
-	nats *NatsClient
-
-	mu           sync.Mutex
-	metaScrapers []scraper.Scraper
 	scraperPools map[string]WorkerPool
+	nats         *NatsClient
+	metaScrapers []scraper.Scraper
+	mu           sync.Mutex
 }
 
 func NewScraperManager(nats *NatsClient, scraperCfg map[string]int, convsName []string) (*ScraperManager, error) {
@@ -45,7 +43,7 @@ func NewScraperManager(nats *NatsClient, scraperCfg map[string]int, convsName []
 func (sm *ScraperManager) Run() {
 	sm.nats.AddChanQueueSub("scrapable", "bookHandlerGroup")
 	for scrpName := range sm.scraperPools {
-		sm.nats.AddChanQueueSub(fmt.Sprintf("scraper.%s", scrpName), "bookHandlerGroup")
+		sm.nats.AddChanQueueSub("scraper."+scrpName, "bookHandlerGroup")
 	}
 
 	sm.nats.Run(sm.msgHandler, sm.requestHandler)
@@ -60,8 +58,7 @@ func (sm *ScraperManager) msgHandler(data []byte, subject string) {
 		return
 	}
 
-	switch msg.Event {
-	case "scrape":
+	if msg.Event == "scrape" {
 		var rqt msgType.ScrapeNovelRqt
 		err := json.Unmarshal(msg.Payload, &rqt)
 		if err != nil {
@@ -89,8 +86,7 @@ func (sm *ScraperManager) requestHandler(data []byte, subject string) ([]byte, e
 		return generateError(1, "TODO"), logger.Errorf("failed to Unmarshal %s", data)
 	}
 
-	switch msg.Event {
-	case "can_scrape":
+	if msg.Event == "can_scrape" {
 		return sm.canScrape(msg.Payload)
 	}
 
@@ -106,9 +102,9 @@ func (sm *ScraperManager) canScrape(data json.RawMessage) ([]byte, error) {
 
 	name := ""
 	sm.mu.Lock()
-	for _, scraper := range sm.metaScrapers {
-		if scraper.CanScrapeNovel(rqt.Title) {
-			name = scraper.GetName()
+	for _, scrp := range sm.metaScrapers {
+		if scrp.CanScrapeNovel(rqt.Title) {
+			name = scrp.GetName()
 			break
 		}
 	}
@@ -168,7 +164,6 @@ func (sm *ScraperManager) delaySub(subject string, scraperName string) {
 					ticker.Stop()
 					return
 				}
-
 			}
 		}
 	}()

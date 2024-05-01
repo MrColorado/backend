@@ -16,12 +16,11 @@ type job struct {
 
 // worker represents the worker that executes the job
 type worker struct {
-	scrp  scraper.Scraper
-	convs []converter.Converter
-
+	scrp        scraper.Scraper
 	workerPool  chan chan job
 	jobChannel  chan job
 	closeHandle chan bool
+	convs       []converter.Converter
 }
 
 func newWorker(scrp scraper.Scraper, convs []converter.Converter, workerPool chan chan job, closeHandle chan bool) *worker {
@@ -60,17 +59,15 @@ func (w *worker) start() {
 	}()
 }
 
-// workerPool type for holding the workers and handle the job requests
+// WorkerPool type for holding the workers and handle the job requests
 type WorkerPool struct {
-	scrpName  string
-	convsName []string
-
-	queueSize   int
-	noOfWorkers int
-
 	jobQueue    chan job
 	workerPool  chan chan job
-	closeHandle chan bool // Channel used to stop all the workers
+	closeHandle chan bool
+	scrpName    string
+	convsName   []string
+	queueSize   int
+	noOfWorkers int
 }
 
 // NewWorkerPool creates thread threadpool
@@ -126,15 +123,14 @@ func (t *WorkerPool) dispatch() {
 	logger.Info("dispatch")
 	for {
 		select {
-
 		case j := <-t.jobQueue:
 			logger.Info("Got job")
 
 			// Got job
 			func(j job) {
-				//Find a worker for the job
+				// Find a worker for the job
 				jobChannel := <-t.workerPool
-				//Submit job to the worker
+				// Submit job to the worker
 				jobChannel <- j
 			}(j)
 
@@ -147,7 +143,7 @@ func (t *WorkerPool) dispatch() {
 
 func (t *WorkerPool) Execute(j job) bool {
 	// Add the task to the job queue
-	if len(t.jobQueue) == int(t.queueSize) {
+	if len(t.jobQueue) == t.queueSize {
 		logger.Info("queue is full, not able add the task")
 		return false
 	}
@@ -156,16 +152,16 @@ func (t *WorkerPool) Execute(j job) bool {
 }
 
 func (t *WorkerPool) CanQueuJob() bool {
-	return len(t.jobQueue) < int(t.queueSize)
+	return len(t.jobQueue) < t.queueSize
 }
 
 // Close will close the threadpool
 // It sends the stop signal to all the worker that are running
 // TODO: need to check the existing /running task before closing the threadpool
-func (t *WorkerPool) close() {
-	close(t.closeHandle) // Stops all the routines
-	close(t.workerPool)  // Closes the job threadpool
-	close(t.jobQueue)    // Closes the job Queue
-}
+// func (t *WorkerPool) close() {
+// 	close(t.closeHandle) // Stops all the routines
+// 	close(t.workerPool)  // Closes the job threadpool
+// 	close(t.jobQueue)    // Closes the job Queue
+// }
 
 // TODO bad gestion of close need to work on it

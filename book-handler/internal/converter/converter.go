@@ -3,7 +3,7 @@ package converter
 import (
 	"github.com/MrColorado/backend/book-handler/internal/config"
 	"github.com/MrColorado/backend/book-handler/internal/core"
-	"github.com/MrColorado/backend/book-handler/internal/dataStore"
+	"github.com/MrColorado/backend/book-handler/internal/data"
 	"github.com/MrColorado/backend/logger"
 )
 
@@ -14,10 +14,10 @@ type Converter interface {
 }
 
 func ConverterCreator(name string) (Converter, error) {
-	config := config.GetConfig()
+	cfg := config.GetConfig()
 	app := core.NewApp(
-		dataStore.NewAwsClient(config.AwsConfig),
-		dataStore.NewPostgresClient(config.PostgresConfig),
+		data.NewAwsClient(cfg.AwsConfig),
+		data.NewPostgresClient(cfg.PostgresConfig),
 	)
 
 	switch name {
