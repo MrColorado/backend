@@ -12,6 +12,7 @@ import (
 
 var (
 	scrpCfg = map[string]int{
+		scraper.NovelBinScraperName:  2,
 		scraper.ReadNovelScraperName: 2,
 	}
 	convsName = []string{converter.EpubConverterName}
@@ -54,4 +55,17 @@ func main() {
 // 	}
 
 // 	scrp.ScrapeNovel("THE FROZEN PLAYER RETURNS")
+// }
+
+// func main() {
+// 	config.InitLogger()
+// 	cfg := config.GetConfig()
+// 	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
+
+// 	scrp, err := scraper.ScraperCreator(scraper.NovelBinScraperName)
+// 	if err != nil {
+// 		logger.Fatalf("Failed to init scraper %s", scraper.NovelBinScraperName)
+// 	}
+
+// 	scrp.ScrapeNovel("The First Legendary Beast Master")
 // }

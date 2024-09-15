@@ -14,24 +14,24 @@ import (
 )
 
 const (
-	ReadNovelScraperName = "ReadNovel"
-	readNovelURL         = "https://readnovelfull.com"
+	NovelBinScraperName = "NovelBin"
+	novelBinURL         = "https://novelbin.me"
 )
 
-type ReadNovelScraper struct {
+type NovelBinScraper struct {
 	collector *colly.Collector
 	app       *core.App
 }
 
-func (scraper ReadNovelScraper) findNovelURL(novelName string) (string, error) {
-	url := fmt.Sprintf("%s/novel-list/search?keyword=%s", readNovelURL, strings.ReplaceAll(novelName, " ", "+"))
+func (scraper NovelBinScraper) findNovelURL(novelName string) (string, error) {
+	url := fmt.Sprintf("%s/search?keyword=%s", novelBinURL, strings.ReplaceAll(novelName, " ", "+"))
 	nbFound := 0
 	novelURL := ""
 
 	scraper.collector.OnHTML(".list-novel", func(e *colly.HTMLElement) {
 		e.ForEach(".novel-title", func(_ int, title *colly.HTMLElement) {
 			nbFound += 1
-			novelURL = fmt.Sprintf("%s%s", readNovelURL, title.ChildAttr("a", "href"))
+			novelURL = title.ChildAttr("a", "href")
 		})
 	})
 
@@ -46,7 +46,7 @@ func (scraper ReadNovelScraper) findNovelURL(novelName string) (string, error) {
 	return "", nil
 }
 
-func (scraper ReadNovelScraper) getNbOfChapter(novelID string) int {
+func (scraper NovelBinScraper) getNbOfChapter(novelID string) int {
 	counter := 0
 
 	scraper.collector.OnHTML(".panel-body", func(e *colly.HTMLElement) {
@@ -59,12 +59,12 @@ func (scraper ReadNovelScraper) getNbOfChapter(novelID string) int {
 		scraper.collector.OnHTMLDetach(".panel-body")
 	}()
 
-	scraper.collector.Visit("https://readnovelfull.com/ajax/chapter-archive?novelId=" + novelID)
+	scraper.collector.Visit("https://novelbin.me/ajax/chapter-archive?novelId=" + novelID)
 
 	return counter
 }
 
-func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
+func (scraper NovelBinScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
 	novelID := ""
 	novelMetaData.CurrentChapter = 1
 
@@ -83,7 +83,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML(".btn-read-now", func(e *colly.HTMLElement) {
-		novelMetaData.FirstURL = readNovelURL + e.Attr("href")
+		novelMetaData.FirstURL = e.Attr("href")
 	})
 
 	scraper.collector.OnHTML(".info-meta", func(e *colly.HTMLElement) {
@@ -108,7 +108,8 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	})
 
 	scraper.collector.OnHTML(".book", func(e *colly.HTMLElement) {
-		novelMetaData.CoverPath, _ = e.DOM.Find("img").Attr("src")
+		tmp := e.DOM.Find("img")
+		novelMetaData.CoverPath, _ = tmp.Attr("data-src")
 	})
 
 	defer func() {
@@ -124,7 +125,7 @@ func (scraper ReadNovelScraper) scrapMetaData(url string, novelMetaData *models.
 	novelMetaData.NbChapter = scraper.getNbOfChapter(novelID)
 }
 
-func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
+func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
 	logger.Infof("Scrape : %s", url)
 	nextURL := ""
 
@@ -132,7 +133,7 @@ func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelC
 		if e.Attr("href") == "" {
 			return
 		}
-		nextURL = readNovelURL + e.Attr("href")
+		nextURL = e.Attr("href")
 	})
 
 	scraper.collector.OnHTML("#chr-content", func(e *colly.HTMLElement) {
@@ -149,16 +150,16 @@ func (scraper ReadNovelScraper) scrapPage(url string, chapterData *models.NovelC
 	return nextURL
 }
 
-func NewReadNovelScrapper(app *core.App) ReadNovelScraper {
-	logger.Infof("Create %s's scraper", ReadNovelScraperName)
-	return ReadNovelScraper{
+func NewBinNovelScrapper(app *core.App) NovelBinScraper {
+	logger.Infof("Create %s's scraper", NovelBinScraperName)
+	return NovelBinScraper{
 		collector: colly.NewCollector(colly.AllowURLRevisit()),
 		app:       app,
 	}
 }
 
 // ScrapeNovelStart get chapter of a specific novel starting a defined chapter
-func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter int) {
+func (scraper NovelBinScraper) scrapeNovelStart(novelName string, startChapter int) {
 	data, _ := scraper.app.GetMetaData(novelName)
 
 	if data.Title == "" {
@@ -202,12 +203,12 @@ func (scraper ReadNovelScraper) scrapeNovelStart(novelName string, startChapter 
 }
 
 // GetName return name of scraper
-func (scraper ReadNovelScraper) GetName() string {
-	return ReadNovelScraperName
+func (scraper NovelBinScraper) GetName() string {
+	return NovelBinScraperName
 }
 
 // ScrapeNovel get each chapter of a specific novel
-func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
+func (scraper NovelBinScraper) ScrapeNovel(novelName string) {
 	novelName = common.HarmonizeTitle(novelName)
 	data, _ := scraper.app.GetMetaData(novelName)
 	if data.Title == "" {
@@ -218,7 +219,7 @@ func (scraper ReadNovelScraper) ScrapeNovel(novelName string) {
 }
 
 // CanScrapeNovel check if novel is on the webSite
-func (scraper ReadNovelScraper) CanScrapeNovel(novelName string) bool {
+func (scraper NovelBinScraper) CanScrapeNovel(novelName string) bool {
 	novelName = common.HarmonizeTitle(novelName)
 	logger.Infof("CanScrapeNovel : %s", novelName)
 	novelName = strings.TrimSpace(strings.ToLower(novelName))

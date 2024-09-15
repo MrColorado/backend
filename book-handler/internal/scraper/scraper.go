@@ -25,6 +25,8 @@ func ScraperCreator(scraperName string) (Scraper, error) {
 	switch scraperName {
 	case ReadNovelScraperName:
 		return NewReadNovelScrapper(app), nil
+	case NovelBinScraperName:
+		return NewBinNovelScrapper(app), nil
 	default:
 		return nil, fmt.Errorf("failed to create scraper named : %s", scraperName)
 	}
