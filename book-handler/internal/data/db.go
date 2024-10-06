@@ -135,7 +135,7 @@ func (client *PostgresClient) GetNovelByTitle(title string) (models.NovelData, e
 	var na novelAuthor
 
 	err := gen_models.NewQuery(
-		qm.Select("author.name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"),
+		qm.Select("author.name as name", "novel.id", "novel.nb_chapter", "novel.title", "novel.cover_path", "novel.first_url", "novel.next_url", "novel.current_chapter", "novel.summary", "novel.last_update"), //nolint:lll
 		qm.From("novel"),
 		qm.InnerJoin("author on author.id = novel.fk_author_id"),
 		qm.Where("novel.title = ?", title),

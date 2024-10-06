@@ -3,6 +3,7 @@ package converter
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/MrColorado/backend/book-handler/internal/config"
 	"github.com/MrColorado/backend/book-handler/internal/core"
@@ -26,7 +27,7 @@ func NewEpubConverter(app *core.App) *EpubConverter {
 	}
 }
 
-func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string) error {
+func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string, bookName string) error {
 	data, err := cvt.app.GetMetaData(novelName)
 	if err != nil {
 		return logger.Errorf("failed to import metaData for novel %s : %s", novelName, err.Error())
@@ -49,7 +50,7 @@ func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string) error 
 	}
 
 	e.SetAuthor(data.Author)
-	e.SetTitle(novelName)
+	e.SetTitle(bookName)
 	e.SetCover(imgPath, coverCSSPath)
 	e.SetDescription(fmt.Sprintf("<p>%s</p>", data.Summary))
 	return nil
@@ -58,7 +59,7 @@ func (cvt *EpubConverter) convertMetaData(e *epub.Epub, novelName string) error 
 func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, endChapter int) error {
 	fileName := fmt.Sprintf("%s-%04d-%04d", novelName, startChapter, endChapter)
 	e := epub.NewEpub(fileName)
-	cvt.convertMetaData(e, novelName)
+	cvt.convertMetaData(e, novelName, fmt.Sprintf("%s %04d-%04d", novelName, startChapter, endChapter))
 
 	for i := startChapter; i <= endChapter; i++ {
 		chapterData, err := cvt.app.GetNovelChapter(novelName, i)
@@ -69,6 +70,8 @@ func (cvt *EpubConverter) convertToNovel(novelName string, startChapter int, end
 
 		bodySection := fmt.Sprintf("<h1>Chapter %d</h1>", i)
 		for _, paragraph := range chapterData.Paragraph {
+			paragraph = strings.ReplaceAll(paragraph, "<", "--")
+			paragraph = strings.ReplaceAll(paragraph, ">", "--")
 			bodySection += fmt.Sprintf("<p>%s</p>", paragraph)
 		}
 		if _, err := e.AddSection(bodySection, fmt.Sprintf("Chapter %d", i), "", ""); err != nil {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/MrColorado/backend/book-handler/internal/core"
 	"github.com/MrColorado/backend/book-handler/internal/models"
@@ -125,7 +126,7 @@ func (scraper NovelBinScraper) scrapMetaData(url string, novelMetaData *models.N
 	novelMetaData.NbChapter = scraper.getNbOfChapter(novelID)
 }
 
-func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelChapterData) string {
+func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelChapterData) (string, error) {
 	logger.Infof("Scrape : %s", url)
 	nextURL := ""
 
@@ -147,7 +148,12 @@ func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelCh
 	}()
 
 	scraper.collector.Visit(url)
-	return nextURL
+
+	if nextURL == "" {
+		return "", logger.Errorf("Failed to get next url, current url is : %s", url)
+	}
+
+	return nextURL, nil
 }
 
 func NewBinNovelScrapper(app *core.App) NovelBinScraper {
@@ -184,15 +190,28 @@ func (scraper NovelBinScraper) scrapeNovelStart(novelName string, startChapter i
 		url = data.NextURL
 	}
 
-	for ; url != ""; i++ {
+	for ; i != data.NbChapter; i++ {
 		chapterData := models.NovelChapterData{
 			Chapter: i,
 		}
-		url = scraper.scrapPage(url, &chapterData)
+
+		retry := 0
+		for ; retry != 5; retry++ {
+			nextURL, err := scraper.scrapPage(url, &chapterData)
+			if err == nil {
+				url = nextURL
+				break
+			}
+			logger.Infof("Failed to get novel at URL %s for chapter %d retry in %d sec", url, i, retry)
+			time.Sleep(time.Second * time.Duration(retry))
+		}
+		if retry == 5 {
+			logger.Errorf("Failed to get novel at URL %s for chapter %d", url, i)
+			return
+		}
 
 		data.NextURL = url
 		data.CurrentChapter += 1
-
 		if scraper.app.ExportNovelChapter(data.Title, chapterData) != nil {
 			return
 		}

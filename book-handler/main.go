@@ -67,5 +67,21 @@ func main() {
 // 		logger.Fatalf("Failed to init scraper %s", scraper.NovelBinScraperName)
 // 	}
 
-// 	scrp.ScrapeNovel("The First Legendary Beast Master")
+// 	scrp.ScrapeNovel("genetic ascension")
+// }
+
+// func main() {
+// 	config.InitLogger()
+// 	cfg := config.GetConfig()
+// 	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
+
+// 	db := data.NewPostgresClient(cfg.PostgresConfig)
+// 	db.GetBookByTitle("big life", 101)
+
+// 	conv, err := converter.ConverterCreator(converter.EpubConverterName)
+// 	if err != nil {
+// 		logger.Fatal(err.Error())
+// 	}
+
+// 	conv.ConvertNovel("genetic ascension")
 // }
