@@ -1,6 +1,22 @@
-# Monorepo
+# Backend
 
-## Commandes
+Ce dépot à pour objectif de mettre sous format EPUB des "novels" actuellement disponible sur internet.
+Les sites depuis lesquels il est actuellement possible de les récupérer sont :
+- https://novelbin.me/
+- https://readnovelfull.com/
+
+## Utilisation
+
+`docker-compose up` pour lancer la partie backend du projet, la partie frontend se trouve [ici](https://github.com/MrColorado/frontend).
+Le docker compose lance actuellement plusieurs services :
+- Une base de donnée : Postgresql
+- Un S3 : Minio
+- Un broqueur de message : Nats
+- Un proxy pour permettre la conversion de gRPC : Envoy
+- Un server permettant de servir le frontend
+- Un Service permettant de récupérer les "novels" et les convertir sous format EPUB
+
+## Commandes utilise pour le dev
 
 Docker build :
 - `docker build --build-arg DIRECTORY=server --file server/Dockerfile --progress=plain . -t server`
