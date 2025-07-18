@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
-
 	"github.com/MrColorado/backend/book-handler/internal/config"
 	"github.com/MrColorado/backend/book-handler/internal/converter"
-	"github.com/MrColorado/backend/book-handler/internal/handler"
 	"github.com/MrColorado/backend/book-handler/internal/scraper"
 	"github.com/MrColorado/backend/logger"
 )
@@ -18,22 +15,22 @@ var (
 	convsName = []string{converter.EpubConverterName}
 )
 
-func main() {
-	config.InitLogger()
-	cfg := config.GetConfig()
-	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
-	nats, err := handler.NewNatsClient(cfg.NatsConfig, context.TODO())
-	if err != nil {
-		logger.Info(err.Error())
-		return
-	}
-	manager, err := handler.NewScraperManager(nats, scrpCfg, convsName)
-	if err != nil {
-		logger.Info(err.Error())
-		return
-	}
-	manager.Run()
-}
+// func main() {
+// 	config.InitLogger()
+// 	cfg := config.GetConfig()
+// 	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
+// 	nats, err := handler.NewNatsClient(cfg.NatsConfig, context.TODO())
+// 	if err != nil {
+// 		logger.Info(err.Error())
+// 		return
+// 	}
+// 	manager, err := handler.NewScraperManager(nats, scrpCfg, convsName)
+// 	if err != nil {
+// 		logger.Info(err.Error())
+// 		return
+// 	}
+// 	manager.Run()
+// }
 
 // func main() {
 // 	config.InitLogger()
@@ -57,18 +54,18 @@ func main() {
 // 	scrp.ScrapeNovel("THE FROZEN PLAYER RETURNS")
 // }
 
-// func main() {
-// 	config.InitLogger()
-// 	cfg := config.GetConfig()
-// 	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
+func main() {
+	config.InitLogger()
+	cfg := config.GetConfig()
+	logger.Infof("Misc : %s", cfg.MiscConfig.FilesFolder)
 
-// 	scrp, err := scraper.ScraperCreator(scraper.NovelBinScraperName)
-// 	if err != nil {
-// 		logger.Fatalf("Failed to init scraper %s", scraper.NovelBinScraperName)
-// 	}
+	scrp, err := scraper.ScraperCreator(scraper.NovelBinScraperName)
+	if err != nil {
+		logger.Fatalf("Failed to init scraper %s", scraper.NovelBinScraperName)
+	}
 
-// 	scrp.ScrapeNovel("genetic ascension")
-// }
+	scrp.ScrapeNovel("defiance of the fall")
+}
 
 // func main() {
 // 	config.InitLogger()

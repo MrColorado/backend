@@ -37,3 +37,6 @@ Se connecter sur le DB :
 pg_dump -U dbusername dbname > dbexport.pgsql
 dc exec database pg_dump -U $POSTGRES_USER novel > dbexport.pgsql
 dc exec database pg_dump -U $POSTGRES_USER postgres --schema-only
+
+
+Il peut y avoir des conflits entre le docker psql et le service psql qui tourne sur wsl2 : 'sudo systemctl stop postgresql'

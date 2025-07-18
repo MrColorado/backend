@@ -3,6 +3,7 @@ package scraper
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -60,12 +61,17 @@ func (scraper NovelBinScraper) getNbOfChapter(novelID string) int {
 		scraper.collector.OnHTMLDetach(".panel-body")
 	}()
 
-	scraper.collector.Visit("https://novelbin.me/ajax/chapter-archive?novelId=" + novelID)
+	err := scraper.collector.Visit("https://novelbin.me/ajax/chapter-archive?novelId=" + novelID)
+	if err != nil {
+		logger.Errorf("Failed to get chapter count for novel ID %s: %v", novelID, err)
+		return 0
+	}
 
 	return counter
 }
 
 func (scraper NovelBinScraper) scrapMetaData(url string, novelMetaData *models.NovelMetaData) {
+	logger.Infof("Scraping metadata from URL: %s", url)
 	novelID := ""
 	novelMetaData.CurrentChapter = 1
 
@@ -127,27 +133,103 @@ func (scraper NovelBinScraper) scrapMetaData(url string, novelMetaData *models.N
 }
 
 func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelChapterData) (string, error) {
-	logger.Infof("Scrape : %s", url)
+	logger.Infof("Scraping chapter page: %s", url)
 	nextURL := ""
 
+	// Add response status checking
+	scraper.collector.OnResponse(func(r *colly.Response) {
+		logger.Infof("Response status: %d for URL: %s", r.StatusCode, r.Request.URL)
+		if r.StatusCode != http.StatusOK {
+			logger.Errorf("HTTP %d error for URL: %s", r.StatusCode, r.Request.URL)
+		}
+	})
+
+	// Add error handling
+	scraper.collector.OnError(func(r *colly.Response, err error) {
+		logger.Errorf("Request failed for URL %s: %v", r.Request.URL, err)
+	})
+
+	// Add diagnostic logging
+	scraper.collector.OnHTML("body", func(e *colly.HTMLElement) {
+		logger.Infof("Chapter page body length: %d", len(e.Text))
+		if len(e.Text) > 500 {
+			logger.Infof("Chapter page HTML preview: %s", e.Text[:500])
+		} else {
+			logger.Infof("Chapter page HTML preview: %s", e.Text)
+		}
+
+		// Check if we got a 404 or error page
+		if strings.Contains(e.Text, "404") || strings.Contains(e.Text, "Not Found") {
+			logger.Errorf("Page not found (404) for URL: %s", url)
+		}
+		if strings.Contains(e.Text, "Access Denied") || strings.Contains(e.Text, "Forbidden") {
+			logger.Errorf("Access denied (403) for URL: %s", url)
+		}
+	})
+
 	scraper.collector.OnHTML("#next_chap", func(e *colly.HTMLElement) {
+		logger.Infof("Found #next_chap element")
 		if e.Attr("href") == "" {
+			logger.Infof("Next chapter href is empty")
 			return
 		}
 		nextURL = e.Attr("href")
+		logger.Infof("Next URL: %s", nextURL)
 	})
 
 	scraper.collector.OnHTML("#chr-content", func(e *colly.HTMLElement) {
+		logger.Infof("Found #chr-content element")
 		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
 			chapterData.Paragraph = append(chapterData.Paragraph, paragraph.Text)
 		})
+		logger.Infof("Found %d paragraphs in chapter", len(chapterData.Paragraph))
 	})
+
+	// Try alternative selectors for chapter content
+	scraper.collector.OnHTML(".chapter-content", func(e *colly.HTMLElement) {
+		logger.Infof("Found .chapter-content element")
+		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
+			chapterData.Paragraph = append(chapterData.Paragraph, paragraph.Text)
+		})
+		logger.Infof("Found %d paragraphs in chapter (alt selector)", len(chapterData.Paragraph))
+	})
+
+	scraper.collector.OnHTML(".content", func(e *colly.HTMLElement) {
+		logger.Infof("Found .content element")
+		e.ForEach("p", func(_ int, paragraph *colly.HTMLElement) {
+			chapterData.Paragraph = append(chapterData.Paragraph, paragraph.Text)
+		})
+		logger.Infof("Found %d paragraphs in chapter (content selector)", len(chapterData.Paragraph))
+	})
+
+	// Try any link that might be the next chapter
+	scraper.collector.OnHTML("a[href*='/chapter/']", func(e *colly.HTMLElement) {
+		logger.Infof("Found chapter link: %s -> %s", e.Text, e.Attr("href"))
+		if nextURL == "" && strings.Contains(e.Text, "Next") {
+			nextURL = e.Attr("href")
+			logger.Infof("Set next URL from link: %s", nextURL)
+		}
+	})
+
 	defer func() {
 		scraper.collector.OnHTMLDetach("#chr-content")
 		scraper.collector.OnHTMLDetach("#next_chap")
+		scraper.collector.OnHTMLDetach(".chapter-content")
+		scraper.collector.OnHTMLDetach(".content")
+		scraper.collector.OnHTMLDetach("body")
 	}()
 
-	scraper.collector.Visit(url)
+	scraper.collector.OnError(func(r *colly.Response, err error) {
+		logger.Errorf("Request failed for URL %s: %v", r.Request.URL, err)
+	})
+
+	err := scraper.collector.Visit(url)
+	if err != nil {
+		logger.Errorf("Failed to visit URL %s: %v", url, err)
+		return "", logger.Errorf("failed to visit url %s : %s", url, err.Error())
+	}
+
+	logger.Infof("Chapter scraping completed. Paragraphs: %d, Next URL: %s", len(chapterData.Paragraph), nextURL)
 
 	if nextURL == "" {
 		return "", logger.Errorf("Failed to get next url, current url is : %s", url)
@@ -158,10 +240,53 @@ func (scraper NovelBinScraper) scrapPage(url string, chapterData *models.NovelCh
 
 func NewBinNovelScrapper(app *core.App) NovelBinScraper {
 	logger.Infof("Create %s's scraper", NovelBinScraperName)
-	return NovelBinScraper{
-		collector: colly.NewCollector(colly.AllowURLRevisit()),
+
+	// Create collector with proper user agent and settings
+	collector := colly.NewCollector(
+		colly.AllowURLRevisit(),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+		colly.Async(true),
+	)
+
+	// Set random delays to mimic human behavior
+	collector.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		RandomDelay: 3 * time.Second,
+		Parallelism: 1,
+	})
+
+	// Set up proper headers to avoid 403 Forbidden errors
+	collector.OnRequest(func(r *colly.Request) {
+		logger.Infof("Making request to: %s", r.URL)
+
+		// Add random delay to mimic human behavior
+		time.Sleep(time.Duration(1+rand.Intn(3)) * time.Second)
+
+		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+		r.Headers.Set("Accept-Language", "en-US,en;q=0.9")
+		r.Headers.Set("Accept-Encoding", "gzip, deflate, br")
+		r.Headers.Set("Connection", "keep-alive")
+		r.Headers.Set("Upgrade-Insecure-Requests", "1")
+		r.Headers.Set("Cache-Control", "no-cache")
+		r.Headers.Set("Pragma", "no-cache")
+		r.Headers.Set("Sec-Fetch-Dest", "document")
+		r.Headers.Set("Sec-Fetch-Mode", "navigate")
+		r.Headers.Set("Sec-Fetch-Site", "none")
+		r.Headers.Set("Sec-Fetch-User", "?1")
+		r.Headers.Set("DNT", "1")
+		r.Headers.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
+		r.Headers.Set("Sec-Ch-Ua-Mobile", "?0")
+		r.Headers.Set("Sec-Ch-Ua-Platform", `"Windows"`)
+
+		logger.Infof("Making request to: %s", r.URL)
+	})
+
+	scraper := NovelBinScraper{
+		collector: collector,
 		app:       app,
 	}
+
+	return scraper
 }
 
 // ScrapeNovelStart get chapter of a specific novel starting a defined chapter
@@ -197,16 +322,22 @@ func (scraper NovelBinScraper) scrapeNovelStart(novelName string, startChapter i
 
 		retry := 0
 		for ; retry != 5; retry++ {
+			logger.Infof("Attempting to scrape chapter %d (attempt %d/5): %s", i, retry+1, url)
 			nextURL, err := scraper.scrapPage(url, &chapterData)
 			if err == nil {
+				logger.Infof("Successfully scraped chapter %d, next URL: %s", i, nextURL)
 				url = nextURL
 				break
 			}
-			logger.Infof("Failed to get novel at URL %s for chapter %d retry in %d sec", url, i, retry)
-			time.Sleep(time.Second * time.Duration(retry))
+			logger.Errorf("Failed to get novel at URL %s for chapter %d (attempt %d/5): %v", url, i, retry+1, err)
+			if retry < 4 { // Don't sleep on the last attempt
+				sleepTime := time.Second * time.Duration(retry+1)
+				logger.Infof("Retrying in %v...", sleepTime)
+				time.Sleep(sleepTime)
+			}
 		}
 		if retry == 5 {
-			logger.Errorf("Failed to get novel at URL %s for chapter %d", url, i)
+			logger.Errorf("Failed to get novel at URL %s for chapter %d after 5 attempts", url, i)
 			return
 		}
 
